@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
     if let Some(db_path) = &args.db {
         println!("Seeding database {}...", db_path);
         let pool = sqlx::SqlitePool::connect(&format!("sqlite:{}", db_path)).await?;
-        
+
         // Seed sub users
         for i in 0..args.subs {
             let ident = format!("{}-sub-{}", args.ident, i);
@@ -91,8 +91,8 @@ async fn main() -> Result<()> {
         }
         println!("Database seeded.");
     }
-    
-    println!("Starting benchmark with {} subs, {} pubs, {} msgs/pub, payload {} bytes", 
+
+    println!("Starting benchmark with {} subs, {} pubs, {} msgs/pub, payload {} bytes",
              args.subs, args.pubs, args.msgs, args.payload_size);
 
     let total_expected = (args.pubs * args.msgs * args.subs) as u64;
@@ -117,17 +117,17 @@ async fn main() -> Result<()> {
                     return;
                 }
             };
-            if let Err(e) = client.send(Frame::Subscribe { 
-                ident: ident.clone().into(), 
-                channel: channel.into() 
+            if let Err(e) = client.send(Frame::Subscribe {
+                ident: ident.clone().into(),
+                channel: channel.into()
             }).await {
                 eprintln!("Sub {} subscribe failed: {}", i, e);
                 barrier.wait().await;
                 return;
             }
-            
+
             barrier.wait().await;
-            
+
             while let Some(msg) = client.next().await {
                 if let Ok(Frame::Publish { .. }) = msg {
                     counter.fetch_add(1, Ordering::Relaxed);
@@ -162,24 +162,24 @@ async fn main() -> Result<()> {
                     return;
                 }
             };
-            
+
             barrier.wait().await;
-            
+
             let start = Instant::now();
             let mut count = 0usize;
             loop {
                 // Check termination condition
                 if let Some(d) = run_duration {
                     if start.elapsed() >= d { break; }
-                } else {
-                    if count >= msgs { break; }
+                } else if count >= msgs {
+                    break;
                 }
 
                 // Tight loop for publishing
-                if let Err(e) = client.send(Frame::Publish { 
-                    ident: ident.clone().into(), 
-                    channel: channel.clone().into(), 
-                    payload: p.clone() 
+                if let Err(e) = client.send(Frame::Publish {
+                    ident: ident.clone().into(),
+                    channel: channel.clone().into(),
+                    payload: p.clone()
                 }).await {
                     eprintln!("Pub {} failed: {}", i, e);
                     break;
@@ -205,7 +205,7 @@ async fn main() -> Result<()> {
         let elapsed = last_report.elapsed().as_secs_f64();
         let delta = current_count - last_count;
         println!("Received: {} ({:.2} msg/s)", current_count, delta as f64 / elapsed);
-        
+
         last_report = Instant::now();
         last_count = current_count;
 
@@ -213,7 +213,7 @@ async fn main() -> Result<()> {
             println!("Benchmark finished after duration.");
             break;
         }
-        
+
         if run_duration.is_none() && current_count >= total_expected {
             println!("Benchmark finished after msg count.");
             break;
@@ -222,7 +222,7 @@ async fn main() -> Result<()> {
 
     let total_elapsed = start_time.elapsed();
     let final_count = received_count.load(Ordering::Relaxed);
-    
+
     println!("--- Benchmark Results ---");
     println!("Total Messages Received: {}", final_count);
     println!("Total Time: {:.2?}", total_elapsed);

@@ -76,6 +76,12 @@ pub fn hashsecret(rand: &[u8], secret: &str) -> Vec<u8> {
 
 pub struct HpfeedsCodec;
 
+impl Default for HpfeedsCodec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HpfeedsCodec {
     pub fn new() -> Self {
         Self
@@ -115,10 +121,10 @@ impl Decoder for HpfeedsCodec {
                 OP_ERROR => 1 + 256, // error msg
                 _ => {
                     // Invalid opcode, we will catch it later, but for now enforce MAXBUF
-                    MAXBUF 
+                    MAXBUF
                 }
             };
-            
+
             let limit = 5 + max_op_len;
             if len > limit {
                  return Err(io::Error::new(io::ErrorKind::InvalidData, format!("message too large for opcode {}", op)));
@@ -132,13 +138,13 @@ impl Decoder for HpfeedsCodec {
         // Remove length bytes
         src.advance(4);
         let mut msg = src.split_to(len - 4).freeze(); // Convert to Bytes for zero-copy slicing
-        
+
         // First byte is opcode
         if msg.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "empty message"));
         }
         let op = msg.split_to(1)[0];
-        
+
         match op {
             OP_ERROR => {
                 Ok(Some(Frame::Error(msg)))
@@ -258,10 +264,10 @@ mod tests {
     #[test]
     fn publish_roundtrip() {
         let mut codec = HpfeedsCodec::new();
-        let frame = Frame::Publish { 
-            ident: Bytes::from_static(b"client1"), 
-            channel: Bytes::from_static(b"ch1"), 
-            payload: Bytes::from_static(b"hello") 
+        let frame = Frame::Publish {
+            ident: Bytes::from_static(b"client1"),
+            channel: Bytes::from_static(b"ch1"),
+            payload: Bytes::from_static(b"hello")
         };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();
@@ -272,9 +278,9 @@ mod tests {
     #[test]
     fn subscribe_roundtrip() {
         let mut codec = HpfeedsCodec::new();
-        let frame = Frame::Subscribe { 
-            ident: Bytes::from_static(b"client1"), 
-            channel: Bytes::from_static(b"ch1") 
+        let frame = Frame::Subscribe {
+            ident: Bytes::from_static(b"client1"),
+            channel: Bytes::from_static(b"ch1")
         };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();
@@ -285,9 +291,9 @@ mod tests {
     #[test]
     fn unsubscribe_roundtrip() {
         let mut codec = HpfeedsCodec::new();
-        let frame = Frame::Unsubscribe { 
-            ident: Bytes::from_static(b"client1"), 
-            channel: Bytes::from_static(b"ch1") 
+        let frame = Frame::Unsubscribe {
+            ident: Bytes::from_static(b"client1"),
+            channel: Bytes::from_static(b"ch1")
         };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();

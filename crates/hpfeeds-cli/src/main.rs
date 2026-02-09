@@ -81,11 +81,11 @@ enum AdminCommands {
             ident: String,
         }
     }
-    
+
     #[tokio::main]
     async fn main() -> Result<()> {
         let args = Cli::parse();
-        
+
         match args.command {
                     Commands::Sub { channels } => {
                         let addr = format!("{}:{}", args.host, args.port);
@@ -95,7 +95,7 @@ enum AdminCommands {
                             println!("Subscribing to {}", c);
                             client.send(Frame::Subscribe { ident: args.ident.clone().into(), channel: c.into() }).await?;
                         }
-            
+
                         println!("Waiting for messages...");
                         while let Some(msg) = client.next().await {
                             match msg {
@@ -130,12 +130,12 @@ enum AdminCommands {
                                 buf
                             }
                         };
-            
+
                         println!("Publishing {} bytes to {}", data.len(), channel);
-                        client.send(Frame::Publish { 
-                            ident: args.ident.clone().into(), 
-                            channel: channel.into(), 
-                            payload: data.into() 
+                        client.send(Frame::Publish {
+                            ident: args.ident.clone().into(),
+                            channel: channel.into(),
+                            payload: data.into()
                         }).await?;
                         println!("Done.");
                     }            Commands::Admin { db, cmd } => {
@@ -144,7 +144,7 @@ enum AdminCommands {
                 }
                 let conn_str = format!("sqlite:{}", db);
                 let pool = SqlitePool::connect(&conn_str).await?;
-    
+
                 match cmd {
                     AdminCommands::AddUser { ident, secret } => {
                         sqlx::query("INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)")
@@ -173,7 +173,7 @@ enum AdminCommands {
                             let ident: String = r.get("ident");
                             let secret: String = r.get("secret");
                             println!("{:<20} | {:<20}", ident, secret);
-                            
+
                             // fetch permissions
                             let perms = sqlx::query("SELECT channel, can_pub, can_sub FROM permissions WHERE ident = ?")
                                 .bind(&ident)
@@ -201,7 +201,6 @@ enum AdminCommands {
                 }
             }
         }
-    
+
         Ok(())
     }
-    

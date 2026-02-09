@@ -116,9 +116,9 @@ async fn main() -> Result<()> {
     println!("Collector connected to broker at {}", addr);
 
     for channel in args.channels.split(',') {
-        client.send(Frame::Subscribe { 
-            ident: args.ident.clone().into(), 
-            channel: channel.trim().to_string().into() 
+        client.send(Frame::Subscribe {
+            ident: args.ident.clone().into(),
+            channel: channel.trim().to_string().into()
         }).await?;
     }
 

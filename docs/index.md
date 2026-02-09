@@ -1,8 +1,10 @@
 # Welcome to hpfeeds-rs
 
-`hpfeeds-rs` is a modern, high-performance, async Rust implementation of the [HPFeeds](https://github.com/hpfeeds/hpfeeds) protocol.
+`hpfeeds-rs` is a modern, high-performance, async Rust implementation of the [HPFeeds](https://githu
+b.com/hpfeeds/hpfeeds) protocol.
 
-This project provides a wire-compatible, drop-in replacement for original HPFeeds brokers, optimized for extreme throughput (3.6M+ msg/s) and production reliability.
+This project provides a wire-compatible, drop-in replacement for original HPFeeds brokers, optimized
+ for extreme throughput (3.6M+ msg/s) and production reliability.
 
 ## Getting Started
 

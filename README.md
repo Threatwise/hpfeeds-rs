@@ -1,22 +1,29 @@
 # hpfeeds-rs
 
-A modern, high-performance, async Rust implementation of the [HPFeeds](https://github.com/hpfeeds/hpfeeds) protocol.
+A modern, high-performance, async Rust implementation of the [HPFeeds](https://github.com/hpfeeds/hp
+feeds) protocol.
 
-This project is a wire-compatible, drop-in replacement for original HPFeeds brokers, optimized for extreme throughput (3.6M+ msg/s) and production reliability.
+This project is a wire-compatible, drop-in replacement for original HPFeeds brokers, optimized for e
+xtreme throughput (3.6M+ msg/s) and production reliability.
 
 ## Key Components
 
-- **`hpfeeds-server`**: The central broker. Supports SQLite/JSON auth, granular ACLs, native TLS, and Prometheus metrics.
-- **`hpfeeds-collector`**: A universal data bridge with "batteries included" sinks for Splunk, Kafka, Postgres, Mongo, Elastic, and more.
-- **`hpfeeds-cli`**: Command-line tool for publishing, subscribing, and managing the SQLite user database.
+- **`hpfeeds-server`**: The central broker. Supports SQLite/JSON auth, granular ACLs, native TLS, an
+d Prometheus metrics.
+- **`hpfeeds-collector`**: A universal data bridge with "batteries included" sinks for Splunk, Kafka
+, Postgres, Mongo, Elastic, and more.
+- **`hpfeeds-cli`**: Command-line tool for publishing, subscribing, and managing the SQLite user dat
+abase.
 - **`hpfeeds-client`**: Robust Rust library for building high-speed honeypots.
 
 ## Features
 
 - **Extreme Performance**: Sustained 3.6M msg/s (3.5 GB/s) on standard hardware.
 - **Zero-Copy Architecture**: Uses `bytes::Bytes` for efficient message broadcasting.
-- **Greedy Batching**: All database and log outputs use intelligent buffering to maximize I/O efficiency.
-- **Strict Protocol Safety**: Enforces 1MB limits and strict UTF-8 validation to prevent DoS and crashes.
+- **Greedy Batching**: All database and log outputs use intelligent buffering to maximize I/O effici
+ency.
+- **Strict Protocol Safety**: Enforces 1MB limits and strict UTF-8 validation to prevent DoS and cra
+shes.
 - **Pure Rust**: 100% Rust stack including pure-Rust Kafka and TLS (rustls) for easy deployment.
 
 ## Installation
@@ -27,7 +34,8 @@ cargo build --release
 
 ## Universal Collector (`hpfeeds-collector`)
 
-The collector is the bridge between the broker and your analysis stack. It supports multiple output sinks:
+The collector is the bridge between the broker and your analysis stack. It supports multiple output 
+sinks:
 
 | Sink | Use Case | Config Flag |
 | :--- | :--- | :--- |
@@ -44,12 +52,14 @@ The collector is the bridge between the broker and your analysis stack. It suppo
 
 ### Example: Feed your Honeymap via Redis
 ```bash
-./target/release/hpfeeds-collector -i admin -s secret --output redis --redis-url "redis://localhost/"
+./target/release/hpfeeds-collector -i admin -s secret --output redis --redis-url "redis://localhost/
+"
 ```
 
 ### Example: Professional Archival to Postgres
 ```bash
-./target/release/hpfeeds-collector -i admin -s secret --output postgres --postgres-url "postgres://user:pass@host/db"
+./target/release/hpfeeds-collector -i admin -s secret --output postgres --postgres-url "postgres://u
+ser:pass@host/db"
 ```
 
 ## Running the Broker

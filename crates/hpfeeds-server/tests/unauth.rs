@@ -2,6 +2,8 @@ use hpfeeds_core::Frame;
 use hpfeeds_client::connect;
 use tokio::time::{timeout, Duration};
 use futures::{SinkExt, StreamExt};
+use bytes::Bytes;
+use tokio_util::codec::Decoder;
 
 #[tokio::test]
 async fn unauth_subscribe_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,34 +12,20 @@ async fn unauth_subscribe_is_rejected() -> Result<(), Box<dyn std::error::Error>
 
     tokio::spawn(async move {
         let (socket, _peer) = listener.accept().await.expect("accept");
-        let framed = tokio_util::codec::Framed::new(socket, hpfeeds_core::HpfeedsCodec::new());
+        let framed = hpfeeds_core::HpfeedsCodec::new().framed(socket);
         let (mut sink, mut stream) = framed.split();
-        // send OP_INFO
         let randbuf = vec![1u8,2,3,4];
-        sink.send(Frame::Info { name: "test-broker".to_string(), rand: randbuf.clone().into() }).await.expect("send info");
-        // do NOT expect AUTH, instead read incoming
-        if let Some(Ok(frame)) = stream.next().await {
-            match frame {
-                Frame::Subscribe { ident: _, channel: _ } => {
-                    // should be rejected
-                    sink.send(Frame::Error("unauthorized".to_string())).await.expect("send error");
-                }
-                _ => {
-                    // ignore
-                }
-            }
+        sink.send(Frame::Info { name: Bytes::from_static(b"test-broker"), rand: randbuf.clone().into() }).await.expect("send info");
+        if let Some(Ok(Frame::Subscribe { ident: _, channel: _ })) = stream.next().await {
+            sink.send(Frame::Error(Bytes::from_static(b"unauthorized"))).await.expect("send error");
         }
     });
 
-    // client connects raw (no auth)
     let mut raw = connect(&addr.to_string()).await?;
 
-    // read OP_INFO
     if let Some(Ok(Frame::Info { .. })) = raw.next().await {
-        // send subscribe without authenticating
-        raw.send(Frame::Subscribe { ident: "client1".to_string(), channel: "ch1".to_string() }).await?;
+        raw.send(Frame::Subscribe { ident: Bytes::from_static(b"client1"), channel: Bytes::from_static(b"ch1") }).await?;
 
-        // expect an error frame
         let res = timeout(Duration::from_secs(1), async {
             while let Some(msg) = raw.next().await {
                 if let Ok(Frame::Error(err)) = msg {
@@ -48,7 +36,7 @@ async fn unauth_subscribe_is_rejected() -> Result<(), Box<dyn std::error::Error>
         }).await?;
 
         let err = res?;
-        assert_eq!(err, "unauthorized".to_string());
+        assert_eq!(err, Bytes::from_static(b"unauthorized"));
     } else {
         panic!("no info");
     }

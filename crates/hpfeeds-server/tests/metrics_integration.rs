@@ -2,7 +2,7 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use std::thread;
 
-// We can't easily spawn the server binary from an integration test and share the in-memory registry 
+// We can't easily spawn the server binary from an integration test and share the in-memory registry
 // because integration tests run as separate binaries.
 // However, we can spawn the server binary as a subprocess, perform actions against it, and then curl it.
 // This is a true black-box integration test.
@@ -21,13 +21,13 @@ fn metrics_endpoint_exposes_counters() {
         .parent()
         .expect("parent") // target/debug
         .to_path_buf();
-    
+
     let server_bin = debug_dir.join("hpfeeds-server");
-    
+
     if !server_bin.exists() {
         // Fallback: try to find it in target/debug directly if we are running via cargo test
-        // It might be complex to locate robustly. 
-        // Alternative: Use the library code in a test? 
+        // It might be complex to locate robustly.
+        // Alternative: Use the library code in a test?
         // No, main.rs logic (which spawns the metrics server) is in bin, not lib.
         // So we must spawn the binary.
         // Let's assume standard cargo layout.
@@ -65,10 +65,10 @@ fn metrics_endpoint_exposes_counters() {
     // Request metrics
     let url = format!("http://127.0.0.1:{}/metrics", metrics_port);
     let resp = reqwest::blocking::get(&url).expect("failed to get metrics");
-    
+
     assert!(resp.status().is_success());
     let body = resp.text().expect("failed to read body");
-    
+
     // Assert we see the counter
     assert!(body.contains("hpfeeds_connections_total"));
     // We expect at least 1 connection (the one we just made)
@@ -77,4 +77,5 @@ fn metrics_endpoint_exposes_counters() {
 
     // cleanup
     let _ = child.kill();
+    let _ = child.wait();
 }
