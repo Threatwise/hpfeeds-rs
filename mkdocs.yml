@@ -1,0 +1,28 @@
+site_name: hpfeeds-rs
+site_description: High-performance Rust implementation of the hpfeeds protocol.
+repo_url: https://github.com/hpfeeds/hpfeeds-rs # Adjust as needed
+
+theme:
+  name: material
+  palette:
+    scheme: slate # Dark mode by default for threat intel tools
+    primary: deep orange
+    accent: deep orange
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Server: server.md
+  - Collector: collector.md
+  - CLI: cli.md
+  - API: api.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true

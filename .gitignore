@@ -1,6 +1,12 @@
-/target
-**/*.rs.bk
+target/
+debug/
+release/
 *.log
 *.db
 *.db-journal
+*.sqlite
 .DS_Store
+.env
+.idea/
+.vscode/
+*.rs.bk
