@@ -31,14 +31,12 @@ async fn routing_publish_to_subscriber() -> Result<(), Box<dyn std::error::Error
                 let mut s = sink;
                 tokio::spawn(async move {
                     while let Some(f) = rx.recv().await {
-                        if s.send(f).await.is_err() {
-                            break;
-                        }
+                        if s.send(f).await.is_err() { break; }
                     }
                 });
                 while let Some(Ok(frame)) = stream.next().await {
                     match frame {
-                        Frame::Subscribe { ident: _, channel } => {
+                        Frame::Subscribe { channel, .. } => {
                             let mut m = subscribers.write().await;
                             m.entry(channel).or_insert_with(std::collections::HashMap::new).insert(conn_id, tx.clone());
                         }
@@ -62,16 +60,16 @@ async fn routing_publish_to_subscriber() -> Result<(), Box<dyn std::error::Error
     let mut pubc = connect_and_auth(&addr.to_string(), "client1", "s3cret").await?;
 
     sub.send(Frame::Subscribe { ident: Bytes::from_static(b"client1"), channel: Bytes::from_static(b"ch1") }).await?;
-
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     pubc.send(Frame::Publish { ident: Bytes::from_static(b"client1"), channel: Bytes::from_static(b"ch1"), payload: Bytes::from_static(b"hello") }).await?;
 
     let res = timeout(Duration::from_secs(1), async {
         while let Some(msg) = sub.next().await {
-            if let Ok(Frame::Publish { channel, payload, .. }) = msg
-                && channel == Bytes::from_static(b"ch1") && payload == Bytes::from_static(b"hello") {
+            if let Ok(Frame::Publish { channel, payload, .. }) = msg {
+                if channel == Bytes::from_static(b"ch1") && payload == Bytes::from_static(b"hello") {
                     return Ok(());
+                }
             }
         }
         Err("no message")

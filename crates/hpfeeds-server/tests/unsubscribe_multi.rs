@@ -31,24 +31,20 @@ async fn unsubscribe_and_multi_subscribers() -> Result<(), Box<dyn std::error::E
                 let mut s = sink;
                 tokio::spawn(async move {
                     while let Some(f) = rx.recv().await {
-                        if s.send(f).await.is_err() {
-                            break;
-                        }
+                        if s.send(f).await.is_err() { break; }
                     }
                 });
                 while let Some(Ok(frame)) = stream.next().await {
                     match frame {
-                        Frame::Subscribe { ident: _, channel } => {
+                        Frame::Subscribe { channel, .. } => {
                             let mut m = subscribers.write().await;
                             m.entry(channel).or_insert_with(std::collections::HashMap::new).insert(conn_id, tx.clone());
                         }
-                        Frame::Unsubscribe { ident: _, channel } => {
+                        Frame::Unsubscribe { channel, .. } => {
                             let mut m = subscribers.write().await;
                             if let Some(entry) = m.get_mut(&channel) {
                                 entry.remove(&conn_id);
-                                if entry.is_empty() {
-                                    m.remove(&channel);
-                                }
+                                if entry.is_empty() { m.remove(&channel); }
                             }
                         }
                         Frame::Publish { ident, channel, payload } => {
@@ -110,9 +106,7 @@ async fn unsubscribe_and_multi_subscribers() -> Result<(), Box<dyn std::error::E
     }).await;
 
     let _r3 = timeout(Duration::from_millis(200), async {
-        if let Some(Ok(Frame::Publish { .. })) = sub2.next().await {
-            got2b = true;
-        }
+        if let Some(Ok(Frame::Publish { .. })) = sub2.next().await { got2b = true; }
     }).await;
 
     assert!(got1b && !got2b, "sub1 should get second publish, sub2 should not");

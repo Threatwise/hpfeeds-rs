@@ -16,7 +16,7 @@ async fn unauth_subscribe_is_rejected() -> Result<(), Box<dyn std::error::Error>
         let (mut sink, mut stream) = framed.split();
         let randbuf = vec![1u8,2,3,4];
         sink.send(Frame::Info { name: Bytes::from_static(b"test-broker"), rand: randbuf.clone().into() }).await.expect("send info");
-        if let Some(Ok(Frame::Subscribe { ident: _, channel: _ })) = stream.next().await {
+        if let Some(Ok(Frame::Subscribe { .. })) = stream.next().await {
             sink.send(Frame::Error(Bytes::from_static(b"unauthorized"))).await.expect("send error");
         }
     });
@@ -28,9 +28,7 @@ async fn unauth_subscribe_is_rejected() -> Result<(), Box<dyn std::error::Error>
 
         let res = timeout(Duration::from_secs(1), async {
             while let Some(msg) = raw.next().await {
-                if let Ok(Frame::Error(err)) = msg {
-                    return Ok(err);
-                }
+                if let Ok(Frame::Error(err)) = msg { return Ok(err); }
             }
             Err("no error")
         }).await?;

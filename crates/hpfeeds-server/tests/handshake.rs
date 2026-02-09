@@ -13,24 +13,19 @@ async fn handshake_integration() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         let (socket, _peer) = listener.accept().await.expect("accept");
         let mut framed = Framed::new(socket, HpfeedsCodec::new());
-        // send OP_INFO with known rand
         let randbuf = vec![9u8,8,7,6];
         framed.send(Frame::Info { name: Bytes::from_static(b"test-broker"), rand: randbuf.clone().into() }).await.expect("send info");
-        // expect OP_AUTH
         if let Some(Ok(Frame::Auth { ident: _, secret_hash })) = framed.next().await {
             let expected = hashsecret(&randbuf, "s3cret");
             assert_eq!(secret_hash, expected);
-            // ack by sending an info message back
             framed.send(Frame::Info { name: Bytes::from_static(b"ack"), rand: vec![].into() }).await.expect("send ack");
         } else {
             panic!("expected AUTH");
         }
     });
 
-    // client connects and performs handshake
     let mut transport = connect_and_auth(&addr.to_string(), "client1", "s3cret").await?;
 
-    // after auth, the server sent an ack info; we should receive it
     if let Some(Ok(Frame::Info { name, .. })) = transport.next().await {
         assert_eq!(name, Bytes::from_static(b"ack"));
     } else {

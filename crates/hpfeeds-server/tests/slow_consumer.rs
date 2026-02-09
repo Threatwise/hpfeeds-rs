@@ -29,15 +29,6 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
     let registry = Registry::new();
     registry.register(Box::new(dropped.clone())).unwrap();
 
-    {
-        let (tx_test, _rx_test) = tokio::sync::mpsc::channel::<u8>(1);
-        assert!(tx_test.try_send(1u8).is_ok());
-        match tx_test.try_send(2u8) {
-            Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {}
-            other => panic!("expected Full, got {:?}", other),
-        }
-    }
-
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;
 
@@ -64,10 +55,10 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
 
                 while let Some(Ok(frame)) = stream.next().await {
                     match frame {
-                        Frame::Subscribe { ident: _, channel: _ } => {
+                        Frame::Subscribe { .. } => {
                             subs.lock().unwrap().push(tx.clone());
                         }
-                        Frame::Publish { ident: _, channel: _, payload } => {
+                        Frame::Publish { payload, .. } => {
                             let f = Frame::Publish { ident: Bytes::from_static(b"pub"), channel: Bytes::from_static(b"ch"), payload };
                             let mut to_remove = Vec::new();
                             for (i, s) in subs.lock().unwrap().iter().enumerate() {
@@ -84,9 +75,7 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
                             }
                             if !to_remove.is_empty() {
                                 let mut guard = subs.lock().unwrap();
-                                for idx in to_remove.into_iter().rev() {
-                                    guard.remove(idx);
-                                }
+                                for idx in to_remove.into_iter().rev() { guard.remove(idx); }
                             }
                         }
                         _ => {}
@@ -114,7 +103,7 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
     if tracing_init_ok {
         let logs_guard = logs.lock().unwrap();
         let found = logs_guard.iter().any(|s| s.contains("dropping message"));
-        assert!(found, "expected warning log about dropping messages, logs: {:?}", *logs_guard);
+        assert!(found, "expected warning log about dropping messages");
     }
 
     Ok(())
