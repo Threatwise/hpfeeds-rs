@@ -1,0 +1,40 @@
+[package]
+name = "hpfeeds-server"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+hpfeeds-core = { path = "../hpfeeds-core" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures = "0.3"
+rand = "0.8"
+sha1 = "0.10"
+prometheus = "0.14"
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "tls-rustls"] }
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+bytes = "1"
+rustls-pemfile = "1.0"
+dashmap = "6.0"
+
+# TLS support and test helpers
+rustls = "0.20"
+tokio-rustls = "0.23"
+rcgen = { version = "0.9", default-features = false }
+
+[dev-dependencies]
+hpfeeds-client = { path = "../hpfeeds-client" }
+tokio = { version = "1", features = ["macros", "rt", "time"] }
+bytes = "1"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }

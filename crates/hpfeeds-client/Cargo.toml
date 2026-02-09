@@ -1,0 +1,18 @@
+[package]
+name = "hpfeeds-client"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+hpfeeds-core = { path = "../hpfeeds-core" }
+tokio = { version = "1", features = ["macros", "rt", "net"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+bytes = "1"
+anyhow = "1"
+futures = "0.3"
+
+# TLS
+tokio-rustls = "0.23"
+rustls = "0.20"
+webpki-roots = "0.22"

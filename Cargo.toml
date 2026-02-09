@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/hpfeeds-core",
+    "crates/hpfeeds-client",
+    "crates/hpfeeds-server", "crates/hpfeeds-cli", "crates/hpfeeds-bench", "crates/hpfeeds-collector",
+]
