@@ -3,22 +3,22 @@ use hpfeeds_client::connect_tls_and_auth;
 use futures::{SinkExt, StreamExt};
 
 use rcgen::generate_simple_self_signed;
-use rustls::Certificate;
-use rustls::{ServerConfig, PrivateKey};
+use rustls::ServerConfig;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::TlsAcceptor;
 use std::sync::Arc;
 use bytes::Bytes;
 
 #[tokio::test]
 async fn tls_handshake_and_auth() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let cert = generate_simple_self_signed(vec!["localhost".into()])?;
-    let cert_der = cert.serialize_der()?;
-    let key_der = cert.serialize_private_key_der();
-    let cert_chain = vec![Certificate(cert_der.clone())];
-    let privkey = PrivateKey(key_der);
+    let cert_der = cert.cert.der().to_vec();
+    let key_der = cert.key_pair.serialize_der();
+    let cert_chain = vec![CertificateDer::from(cert_der.clone())];
+    let privkey = PrivateKeyDer::try_from(key_der)?;
 
     let server_config = ServerConfig::builder()
-        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(cert_chain, privkey)?;
     let acceptor = TlsAcceptor::from(Arc::new(server_config));

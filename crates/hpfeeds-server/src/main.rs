@@ -10,7 +10,7 @@ use tracing::info;
 use rand::RngCore;
 use tokio::sync::broadcast;
 use dashmap::DashMap;
-use std::fs::File;
+
 use prometheus::{IntCounter, Opts, Registry, Encoder};
 use anyhow::Result;
 use tokio_stream::wrappers::BroadcastStream;
@@ -81,7 +81,7 @@ impl Metrics {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> Result<()> {
     let opts = CliOpts::parse();
     if opts.json { tracing_subscriber::fmt().json().init(); } else { tracing_subscriber::fmt::init(); }
 
@@ -90,6 +90,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("hpfeeds-server listening on {}", addr);
 
     let tls_acceptor = if let (Some(cert_path), Some(key_path)) = (&opts.tls_cert, &opts.tls_key) {
+        // validate user-supplied paths to avoid path traversal / absolute path use
+        if !is_safe_relative_path(cert_path) || !is_safe_relative_path(key_path) {
+            eprintln!("Refusing to use absolute or parent-directory TLS paths");
+            return Err(anyhow::anyhow!("unsafe TLS path"));
+        }
         info!("TLS enabled with cert: {} and key: {}", cert_path, key_path);
         Some(Arc::new(load_tls_config(cert_path, key_path)?))
     } else { None };
@@ -154,15 +159,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 fn load_tls_config(cert_path: &str, key_path: &str) -> Result<tokio_rustls::TlsAcceptor> {
-    use rustls_pemfile::{certs, pkcs8_private_keys};
-    use std::io::BufReader;
-    let cert_file = &mut BufReader::new(File::open(cert_path)?);
-    let key_file = &mut BufReader::new(File::open(key_path)?);
-    let cert_chain = certs(cert_file)?.into_iter().map(rustls::Certificate).collect();
-    let mut keys = pkcs8_private_keys(key_file)?;
-    let config = rustls::ServerConfig::builder().with_safe_defaults().with_no_client_auth()
-        .with_single_cert(cert_chain, rustls::PrivateKey(keys.remove(0)))?;
+    // Extra safety: check for path traversal or absolute paths
+    if !is_safe_relative_path(cert_path) || !is_safe_relative_path(key_path) {
+        return Err(anyhow::anyhow!("Unsafe TLS file path: absolute or parent-directory component detected"));
+    }
+
+    // Read and parse PEM-encoded certs
+    let cert_data = std::fs::read_to_string(cert_path)?;
+    let cert_pems = pem::parse_many(&cert_data)?;
+    let cert_chain = cert_pems.into_iter()
+        .filter(|p| p.tag() == "CERTIFICATE")
+        .map(|p| rustls::pki_types::CertificateDer::from(p.contents().to_vec()))
+        .collect::<Vec<_>>();
+    if cert_chain.is_empty() {
+        return Err(anyhow::anyhow!("no certificates found in {}", cert_path));
+    }
+
+    // Read and parse PEM-encoded private key (support PKCS#8 / PKCS#1 / EC)
+    let key_data = std::fs::read_to_string(key_path)?;
+    let key_pems = pem::parse_many(&key_data)?;
+    let key_pem = key_pems.into_iter().find(|p| {
+        let t = p.tag();
+        t == "PRIVATE KEY" || t == "RSA PRIVATE KEY" || t == "EC PRIVATE KEY"
+    })
+        .ok_or_else(|| anyhow::anyhow!("no private key found"))?;
+    let key = rustls::pki_types::PrivateKeyDer::try_from(key_pem.contents().to_vec()).map_err(|e| anyhow::anyhow!(e))?;
+
+    let config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(cert_chain, key)?;
     Ok(tokio_rustls::TlsAcceptor::from(Arc::new(config)))
+}
+
+/// Return false for absolute paths or any parent-directory (`..`) components.
+fn is_safe_relative_path(p: &str) -> bool {
+    let path = std::path::Path::new(p);
+    if path.is_absolute() { return false; }
+    for comp in path.components() {
+        if matches!(comp, std::path::Component::ParentDir) { return false; }
+    }
+    true
 }
 
 async fn handle_connection<S>(
