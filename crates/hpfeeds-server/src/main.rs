@@ -223,7 +223,7 @@ async fn handle_connection<S>(
     let mut codec = HpfeedsCodec::new();
 
     let mut randbuf = vec![0u8; 16];
-    rand::rng().fill_bytes(&mut randbuf);
+    rand::thread_rng().fill_bytes(&mut randbuf);
     let info_bytes = codec.encode_to_bytes(Frame::Info { name: "hpfeeds-rs".to_string().into(), rand: randbuf.clone().into() }).unwrap();
     if writer.write_all(&info_bytes).await.is_err() { return; }
 
