@@ -99,9 +99,7 @@ async fn unsubscribe_and_multi_subscribers() -> Result<(), Box<dyn std::error::E
     let mut got2b = false;
     let _r2 = timeout(Duration::from_secs(1), async {
         while let Some(msg) = sub1.next().await {
-            if let Ok(Frame::Publish { channel, payload, .. }) = msg {
-                if channel == Bytes::from_static(b"chX") && payload == Bytes::from_static(b"two") { got1b = true; break; }
-            }
+            if let Ok(Frame::Publish { channel, payload, .. }) = msg && channel == Bytes::from_static(b"chX") && payload == Bytes::from_static(b"two") { got1b = true; break; }
         }
     }).await;
 

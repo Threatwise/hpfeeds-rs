@@ -15,7 +15,7 @@ async fn rejects_oversized_messages() -> Result<(), Box<dyn std::error::Error>> 
         let mut framed = Framed::new(socket, hpfeeds_core::HpfeedsCodec::new());
         let randbuf = vec![1u8, 2, 3, 4];
         framed.send(Frame::Info { name: Bytes::from_static(b"test"), rand: randbuf.into() }).await.unwrap();
-        while let Some(_) = futures::StreamExt::next(&mut framed).await {}
+        while futures::StreamExt::next(&mut framed).await.is_some() {}
     });
 
     let mut client = connect_and_auth(&addr.to_string(), "client", "secret").await?;

@@ -66,10 +66,8 @@ async fn routing_publish_to_subscriber() -> Result<(), Box<dyn std::error::Error
 
     let res = timeout(Duration::from_secs(1), async {
         while let Some(msg) = sub.next().await {
-            if let Ok(Frame::Publish { channel, payload, .. }) = msg {
-                if channel == Bytes::from_static(b"ch1") && payload == Bytes::from_static(b"hello") {
-                    return Ok(());
-                }
+            if let Ok(Frame::Publish { channel, payload, .. }) = msg && channel == Bytes::from_static(b"ch1") && payload == Bytes::from_static(b"hello") {
+                return Ok(());
             }
         }
         Err("no message")

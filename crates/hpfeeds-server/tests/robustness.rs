@@ -15,7 +15,7 @@ async fn rejects_invalid_opcode() -> Result<(), Box<dyn std::error::Error>> {
         let mut framed = Framed::new(socket, HpfeedsCodec::new());
         let randbuf = vec![1u8, 2, 3, 4];
         framed.send(Frame::Info { name: Bytes::from_static(b"test"), rand: randbuf.into() }).await.unwrap();
-        while let Some(_) = framed.next().await {}
+        while framed.next().await.is_some() {}
     });
 
     let mut stream = tokio::net::TcpStream::connect(addr).await?;
@@ -46,7 +46,7 @@ async fn rejects_malformed_string_length() -> Result<(), Box<dyn std::error::Err
         let mut framed = Framed::new(socket, HpfeedsCodec::new());
         let randbuf = vec![1u8, 2, 3, 4];
         framed.send(Frame::Info { name: Bytes::from_static(b"test"), rand: randbuf.into() }).await.unwrap();
-        while let Some(_) = framed.next().await {}
+        while framed.next().await.is_some() {}
     });
 
     let mut stream = tokio::net::TcpStream::connect(addr).await?;
