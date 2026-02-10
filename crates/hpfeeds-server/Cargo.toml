@@ -25,13 +25,13 @@ hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["full"] }
 http-body-util = "0.1"
 bytes = "1"
-rustls-pemfile = "1.0"
+pem = "3"
 dashmap = "6.0"
 
 # TLS support and test helpers
-rustls = "0.21"
-tokio-rustls = "0.24"
-rcgen = { version = "0.10", default-features = false }
+rustls = { version = "0.23", features = ["aws_lc_rs"] }
+tokio-rustls = "0.26"
+rcgen = { version = "0.13", default-features = false, features = ["pem", "crypto", "aws_lc_rs"] }
 
 [package.metadata.deb]
 maintainer = "HPFeeds Maintainers <maintainers@hpfeeds.io>"
@@ -46,4 +46,4 @@ assets = [
 hpfeeds-client = { version = "0.1.0", path = "../hpfeeds-client" }
 tokio = { version = "1", features = ["macros", "rt", "time"] }
 bytes = "1"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
