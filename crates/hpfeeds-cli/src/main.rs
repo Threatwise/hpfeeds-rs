@@ -4,7 +4,7 @@ use hpfeeds_core::Frame;
 use anyhow::Result;
 use futures::{SinkExt, StreamExt};
 use tokio::io::{self, AsyncReadExt};
-use sqlx::SqlitePool;
+use tokio_rusqlite::{Connection, rusqlite};
 
 #[derive(Parser, Debug)]
 #[clap(name = "hpfeeds-cli", about = "CLI tool for hpfeeds")]
@@ -142,60 +142,80 @@ enum AdminCommands {
                 if !std::path::Path::new(&db).exists() {
                     anyhow::bail!("Database file {} not found. Start the server with --db to create it.", db);
                 }
-                let conn_str = format!("sqlite:{}", db);
-                let pool = SqlitePool::connect(&conn_str).await?;
+                let conn = Connection::open(&db).await?;
 
                 match cmd {
                     AdminCommands::AddUser { ident, secret } => {
-                        sqlx::query("INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)")
-                            .bind(&ident)
-                            .bind(&secret)
-                            .execute(&pool)
-                            .await?;
-                        println!("User {} added/updated.", ident);
+                        let ident_display = ident.clone();
+                        let ident = ident.clone();
+                        let secret = secret.clone();
+                        conn.call(move |conn| {
+                            conn.execute(
+                                "INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)",
+                                [&ident, &secret],
+                            )?;
+                            Ok::<(), rusqlite::Error>(())
+                        }).await?;
+                        println!("User {} added/updated.", ident_display);
                     }
                     AdminCommands::AddAcl { ident, channel, pub_allowed, sub_allowed } => {
-                        sqlx::query("INSERT INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, ?, ?)")
-                            .bind(&ident)
-                            .bind(&channel)
-                            .bind(pub_allowed)
-                            .bind(sub_allowed)
-                            .execute(&pool)
-                            .await?;
-                        println!("ACL added for {} on {}: pub={}, sub={}", ident, channel, pub_allowed, sub_allowed);
+                        let ident_display = ident.clone();
+                        let channel_display = channel.clone();
+                        let ident = ident.clone();
+                        let channel = channel.clone();
+                        conn.call(move |conn| {
+                            conn.execute(
+                                "INSERT INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, ?, ?)",
+                                rusqlite::params![&ident, &channel, pub_allowed, sub_allowed],
+                            )?;
+                            Ok::<(), rusqlite::Error>(())
+                        }).await?;
+                        println!("ACL added for {} on {}: pub={}, sub={}", ident_display, channel_display, pub_allowed, sub_allowed);
                     }
                     AdminCommands::ListUsers => {
-                        use sqlx::Row;
-                        let rows = sqlx::query("SELECT ident, secret FROM users").fetch_all(&pool).await?;
+                        let users = conn.call(|conn| {
+                            let mut stmt = conn.prepare("SELECT ident, secret FROM users")?;
+                            let rows = stmt.query_map([], |row| {
+                                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                            })?;
+                            rows.collect::<Result<Vec<_>, _>>()
+                        }).await?;
+
                         println!("{:<20} | {:<20}", "IDENT", "SECRET");
                         println!("{:-<20}-+-{:-<20}", "", "");
-                        for r in rows {
-                            let ident: String = r.get("ident");
-                            let secret: String = r.get("secret");
+                        for (ident, secret) in users {
                             println!("{:<20} | {:<20}", ident, secret);
 
                             // fetch permissions
-                            let perms = sqlx::query("SELECT channel, can_pub, can_sub FROM permissions WHERE ident = ?")
-                                .bind(&ident)
-                                .fetch_all(&pool)
-                                .await?;
-                            for p in perms {
-                                let chan: String = p.get("channel");
-                                let can_pub: bool = p.get("can_pub");
-                                let can_sub: bool = p.get("can_sub");
+                            let ident_clone = ident.clone();
+                            let perms = conn.call(move |conn| {
+                                let mut stmt = conn.prepare("SELECT channel, can_pub, can_sub FROM permissions WHERE ident = ?")?;
+                                let rows = stmt.query_map([&ident_clone], |row| {
+                                    Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?, row.get::<_, bool>(2)?))
+                                })?;
+                                rows.collect::<Result<Vec<_>, _>>()
+                            }).await?;
+
+                            for (chan, can_pub, can_sub) in perms {
                                 println!("  -> ACL: {:<15} pub={} sub={}", chan, can_pub, can_sub);
                             }
                         }
                     }
                     AdminCommands::RemoveUser { ident } => {
-                        let mut tx = pool.begin().await?;
-                        sqlx::query("DELETE FROM permissions WHERE ident = ?").bind(&ident).execute(&mut *tx).await?;
-                        let res = sqlx::query("DELETE FROM users WHERE ident = ?").bind(&ident).execute(&mut *tx).await?;
-                        tx.commit().await?;
-                        if res.rows_affected() > 0 {
-                            println!("User {} removed.", ident);
+                        let ident_display = ident.clone();
+                        let ident = ident.clone();
+                        let rows_affected = conn.call(move |conn| {
+                            let tx = conn.transaction()?;
+                            tx.execute("DELETE FROM permissions WHERE ident = ?", [&ident])?;
+                            let affected = tx.execute("DELETE FROM users WHERE ident = ?", [&ident])?;
+                            tx.commit()?;
+                            Ok::<usize, rusqlite::Error>(affected)
+                        }).await?;
+
+                        if rows_affected > 0 {
+                            println!("User {} removed.", ident_display);
                         } else {
-                            println!("User {} not found.", ident);
+                            println!("User {} not found.", ident_display);
                         }
                     }
                 }
