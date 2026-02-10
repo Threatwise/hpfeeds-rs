@@ -63,31 +63,44 @@ async fn main() -> Result<()> {
 
     if let Some(db_path) = &args.db {
         println!("Seeding database {}...", db_path);
-        let pool = sqlx::SqlitePool::connect(&format!("sqlite:{}", db_path)).await?;
+        use tokio_rusqlite::{Connection, rusqlite};
+        let conn = Connection::open(db_path).await?;
 
         // Seed sub users
         for i in 0..args.subs {
             let ident = format!("{}-sub-{}", args.ident, i);
-            sqlx::query("INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)")
-                .bind(&ident)
-                .bind(&args.secret)
-                .execute(&pool).await?;
-            sqlx::query("INSERT OR REPLACE INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, 0, 1)")
-                .bind(&ident)
-                .bind(&args.channel)
-                .execute(&pool).await?;
+            let secret = args.secret.clone();
+            let channel = args.channel.clone();
+            let ident_clone = ident.clone();
+            conn.call(move |conn| {
+                conn.execute(
+                    "INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)",
+                    [&ident, &secret],
+                )?;
+                conn.execute(
+                    "INSERT OR REPLACE INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, 0, 1)",
+                    [&ident_clone, &channel],
+                )?;
+                Ok::<(), rusqlite::Error>(())
+            }).await?;
         }
         // Seed pub users
         for i in 0..args.pubs {
             let ident = format!("{}-pub-{}", args.ident, i);
-            sqlx::query("INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)")
-                .bind(&ident)
-                .bind(&args.secret)
-                .execute(&pool).await?;
-            sqlx::query("INSERT OR REPLACE INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, 1, 0)")
-                .bind(&ident)
-                .bind(&args.channel)
-                .execute(&pool).await?;
+            let secret = args.secret.clone();
+            let channel = args.channel.clone();
+            let ident_clone = ident.clone();
+            conn.call(move |conn| {
+                conn.execute(
+                    "INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)",
+                    [&ident, &secret],
+                )?;
+                conn.execute(
+                    "INSERT OR REPLACE INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, 1, 0)",
+                    [&ident_clone, &channel],
+                )?;
+                Ok::<(), rusqlite::Error>(())
+            }).await?;
         }
         println!("Database seeded.");
     }
