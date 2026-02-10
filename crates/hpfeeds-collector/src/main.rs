@@ -8,7 +8,7 @@ use chrono::Utc;
 use tokio::io::AsyncWriteExt;
 use elasticsearch::{Elasticsearch, BulkParts, BulkIndexOperation, BulkOperations};
 use mongodb::{Client as MongoClient, options::ClientOptions as MongoOptions};
-use sqlx::postgres::PgPoolOptions;
+use tokio_postgres::NoTls;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 use rskafka::client::{ClientBuilder as KafkaClientBuilder, partition::{Compression, UnknownTopicHandling}};
@@ -132,10 +132,15 @@ async fn main() -> Result<()> {
         Some(redis::Client::open(args.redis_url.clone())?.get_multiplexed_async_connection().await?)
     } else { None };
 
-    let pg_pool = if args.output == "postgres" {
-        let pool = PgPoolOptions::new().max_connections(5).connect(&args.postgres_url).await?;
-        sqlx::query("CREATE TABLE IF NOT EXISTS events (id SERIAL PRIMARY KEY, ts TIMESTAMPTZ, channel TEXT, source TEXT, payload BYTEA)").execute(&pool).await?;
-        Some(pool)
+    let pg_client = if args.output == "postgres" {
+        let (client, connection) = tokio_postgres::connect(&args.postgres_url, NoTls).await?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("Postgres connection error: {}", e);
+            }
+        });
+        client.execute("CREATE TABLE IF NOT EXISTS events (id SERIAL PRIMARY KEY, ts TIMESTAMPTZ, channel TEXT, source TEXT, payload BYTEA)", &[]).await?;
+        Some(client)
     } else { None };
 
     let mongo_coll = if args.output == "mongo" {
@@ -199,10 +204,9 @@ async fn main() -> Result<()> {
                     }
                 }
                 "postgres" => {
-                    if let Some(pool) = &pg_pool {
+                    if let Some(client) = &pg_client {
                         for e in &buffer {
-                            sqlx::query("INSERT INTO events (ts, channel, source, payload) VALUES ($1, $2, $3, $4)")
-                                .bind(e.timestamp).bind(&e.channel).bind(&e.source).bind(&e.payload).execute(pool).await?;
+                            client.execute("INSERT INTO events (ts, channel, source, payload) VALUES ($1, $2, $3, $4)", &[&e.timestamp, &e.channel, &e.source, &e.payload]).await?;
                         }
                     }
                 }
