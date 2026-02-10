@@ -1,7 +1,7 @@
 use crate::auth::{AccessContext, Authenticator};
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio_rusqlite::{Connection, rusqlite};
+use tokio_rusqlite::{rusqlite, Connection};
 use tracing::info;
 
 #[derive(Clone)]
@@ -37,13 +37,15 @@ impl SqliteAuthenticator {
     pub async fn add_user(&self, ident: &str, secret: &str) -> Result<()> {
         let ident = ident.to_string();
         let secret = secret.to_string();
-        self.conn.call(move |conn| {
-            conn.execute(
-                "INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)",
-                [&ident, &secret],
-            )?;
-            Ok::<(), rusqlite::Error>(())
-        }).await?;
+        self.conn
+            .call(move |conn| {
+                conn.execute(
+                    "INSERT OR REPLACE INTO users (ident, secret) VALUES (?, ?)",
+                    [&ident, &secret],
+                )?;
+                Ok::<(), rusqlite::Error>(())
+            })
+            .await?;
         Ok(())
     }
 
@@ -57,13 +59,15 @@ impl SqliteAuthenticator {
     ) -> Result<()> {
         let ident = ident.to_string();
         let channel = channel.to_string();
-        self.conn.call(move |conn| {
-            conn.execute(
+        self.conn
+            .call(move |conn| {
+                conn.execute(
                 "INSERT INTO permissions (ident, channel, can_pub, can_sub) VALUES (?, ?, ?, ?)",
                 rusqlite::params![&ident, &channel, can_pub, can_sub],
             )?;
-            Ok::<(), rusqlite::Error>(())
-        }).await?;
+                Ok::<(), rusqlite::Error>(())
+            })
+            .await?;
         Ok(())
     }
 }
@@ -80,53 +84,59 @@ impl Authenticator for SqliteAuthenticator {
         let secret_hash = secret_hash.to_vec();
         let rand = rand.to_vec();
 
-        self.conn.call(move |conn| {
-            let secret: String = match conn.query_row(
-                "SELECT secret FROM users WHERE ident = ?",
-                [&ident],
-                |row| row.get(0),
-            ) {
-                Ok(s) => s,
-                Err(_) => return Ok::<Option<AccessContext>, rusqlite::Error>(None),
-            };
+        self.conn
+            .call(move |conn| {
+                let secret: String = match conn.query_row(
+                    "SELECT secret FROM users WHERE ident = ?",
+                    [&ident],
+                    |row| row.get(0),
+                ) {
+                    Ok(s) => s,
+                    Err(_) => return Ok::<Option<AccessContext>, rusqlite::Error>(None),
+                };
 
-            let expected = hpfeeds_core::hashsecret(&rand, &secret);
-            if expected.as_slice() != secret_hash.as_slice() {
-                return Ok(None);
-            }
+                let expected = hpfeeds_core::hashsecret(&rand, &secret);
+                if expected.as_slice() != secret_hash.as_slice() {
+                    return Ok(None);
+                }
 
-            let mut stmt = match conn.prepare("SELECT channel, can_pub, can_sub FROM permissions WHERE ident = ?") {
-                Ok(s) => s,
-                Err(_) => return Ok(None),
-            };
-
-            let perms: Vec<(String, bool, bool)> = match stmt.query_map([&ident], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-            }) {
-                Ok(rows) => match rows.collect::<Result<Vec<_>, _>>() {
-                    Ok(p) => p,
+                let mut stmt = match conn
+                    .prepare("SELECT channel, can_pub, can_sub FROM permissions WHERE ident = ?")
+                {
+                    Ok(s) => s,
                     Err(_) => return Ok(None),
-                },
-                Err(_) => return Ok(None),
-            };
+                };
 
-            let mut pub_channels = Vec::new();
-            let mut sub_channels = Vec::new();
+                let perms: Vec<(String, bool, bool)> = match stmt
+                    .query_map([&ident], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                {
+                    Ok(rows) => match rows.collect::<Result<Vec<_>, _>>() {
+                        Ok(p) => p,
+                        Err(_) => return Ok(None),
+                    },
+                    Err(_) => return Ok(None),
+                };
 
-            for (channel, can_pub, can_sub) in perms {
-                if can_pub {
-                    pub_channels.push(channel.clone());
+                let mut pub_channels = Vec::new();
+                let mut sub_channels = Vec::new();
+
+                for (channel, can_pub, can_sub) in perms {
+                    if can_pub {
+                        pub_channels.push(channel.clone());
+                    }
+                    if can_sub {
+                        sub_channels.push(channel);
+                    }
                 }
-                if can_sub {
-                    sub_channels.push(channel);
-                }
-            }
 
-            Ok(Some(AccessContext {
-                ident: ident.clone(),
-                pub_channels,
-                sub_channels,
-            }))
-        }).await.ok().flatten()
+                Ok(Some(AccessContext {
+                    ident: ident.clone(),
+                    pub_channels,
+                    sub_channels,
+                }))
+            })
+            .await
+            .ok()
+            .flatten()
     }
 }
