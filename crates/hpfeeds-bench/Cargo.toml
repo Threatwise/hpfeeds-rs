@@ -13,6 +13,11 @@ anyhow = "1.0"
 futures = "0.3"
 bytes = "1"
 tokio-util = { version = "0.7", features = ["codec"] }
+<<<<<<< HEAD
 rand = "0.9"
-tokio-rusqlite = { version = "0.6", features = ["bundled"] }
+tokio-rusqlite = { version = "0.7", features = ["bundled"] }
+=======
+rand = "0.8"
+tokio-rusqlite = { version = "0.7", features = ["bundled"] }
+>>>>>>> pr-5-tokio-rusqlite
 
