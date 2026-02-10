@@ -34,23 +34,17 @@ changed_files=()
 # Use awk to safely update package.version and internal path deps' version lines
 for f in $FILES; do
   tmp=$(mktemp)
-  perl -0777 -pe 'BEGIN{ $ver = shift @ARGV }
-    # update [package] version (simple non-greedy match)
-    s/(\[package\].*?\bversion\s*=\s*)"[^"]+"/$1"$ver"/ms;
-
-    # update dependency inline tables that contain path = "../..."
-    while (s/(\b[^\s=]+?\s*=\s*\{[^}]*?path\s*=\s*"\.\/[^"]*"[^}]*\})/replace_dep($1, $ver)/ges) {}
-
-    sub replace_dep {
-      my ($block, $ver) = @_;
-      if ($block =~ /version\s*=\s*"[^"]+"/) {
-        $block =~ s/version\s*=\s*"[^"]+"/version = "$ver"/;
-      } else {
-        $block =~ s/\{\s*/{ version = "$ver", /;
+  awk -v ver="$NEW_VERSION" '
+    BEGIN { in_pkg = 0 }
+    /^\s*\[package\]\s*$/ { in_pkg = 1; print; next }
+    /^\s*\[.*\]/ { in_pkg = 0; print; next }
+    {
+      if (in_pkg && $0 ~ /^\s*version\s*=/) {
+        sub(/version\s*=\s*"[^"]+"/, "version = \"" ver "\"")
       }
-      return $block;
+      print
     }
-  ' "$NEW_VERSION" "$f" > "$tmp"
+  ' "$f" > "$tmp"
 
   if ! cmp -s "$f" "$tmp"; then
     changed_files+=("$f")
