@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-hpfeeds-core = { path = "../hpfeeds-core" }
+hpfeeds-core = { version = "0.1.0", path = "../hpfeeds-core" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json"] }
@@ -34,7 +34,7 @@ tokio-rustls = "0.24"
 rcgen = { version = "0.10", default-features = false }
 
 [dev-dependencies]
-hpfeeds-client = { path = "../hpfeeds-client" }
+hpfeeds-client = { version = "0.1.0", path = "../hpfeeds-client" }
 tokio = { version = "1", features = ["macros", "rt", "time"] }
 bytes = "1"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }

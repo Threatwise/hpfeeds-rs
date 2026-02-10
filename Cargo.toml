@@ -5,3 +5,16 @@ members = [
     "crates/hpfeeds-client",
     "crates/hpfeeds-server", "crates/hpfeeds-cli", "crates/hpfeeds-bench", "crates/hpfeeds-collector",
 ]
+
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI
+cargo-dist-version = "0.14.1"
+# CI backends to support
+ci = ["github"]
+# The installers to generate for each app
+installers = ["shell", "powershell", "msi", "deb"]
+# Target platforms to build apps for
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
+# Path to the repository
+repository = "https://github.com/hpfeeds/hpfeeds-rs"
+

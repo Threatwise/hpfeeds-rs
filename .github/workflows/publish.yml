@@ -9,7 +9,7 @@ name: Release
 permissions:
   contents: write
   packages: write
-  id-token: write  # Required for crates.io trusted publishing
+  id-token: write
 
 jobs:
   # 1. PUBLISH TO CRATES.IO
@@ -22,12 +22,24 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          set -euo pipefail
-          cargo publish --workspace --all-features || echo "already published"
+          # Publish in order of dependency
+          # We use --no-verify because the local path dependencies are technically "invalid" for crates.io
+          # but cargo publish handles them if the version is specified.
+          # However, it's safer to publish them one by one.
+          cargo publish -p hpfeeds-core || echo "hpfeeds-core already published"
+          sleep 10
+          cargo publish -p hpfeeds-client || echo "hpfeeds-client already published"
+          sleep 10
+          cargo publish -p hpfeeds-server || echo "hpfeeds-server already published"
+          cargo publish -p hpfeeds-cli || echo "hpfeeds-cli already published"
+          cargo publish -p hpfeeds-collector || echo "hpfeeds-collector already published"
 
   # 2. DOCKER CONTAINER (GHCR)
   publish-docker:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [hpfeeds-server, hpfeeds-collector, hpfeeds-cli]
     steps:
       - uses: actions/checkout@v4
       - name: Login to GHCR
@@ -36,16 +48,31 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: .
+          file: Dockerfile
           push: true
-          tags: >
-            ghcr.io/${{ github.repository }}:latest,
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            COMPONENT=${{ matrix.component }}
 
   # 3. OS INSTALLERS (.exe, .msi, .deb, .rpm)
-  # Use cargo-dist for cross-platform installers
   publish-assets:
     strategy:
       matrix:
@@ -60,24 +87,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      # Install packaging tools
-      - name: Install Tools (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y rpm binutils
-
-      # Use cargo-dist to build installers
       - name: Install cargo-dist
+        shell: bash
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.14.1/cargo-dist-installer.sh | sh
+
+      - name: Install packaging tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          GH_URL="https://github.com/axodotdev/cargo-dist/releases/latest"
-          FULL_URL="$GH_URL/download/cargo-dist-installer.sh"
-          curl --proto '=https' --tlsv1.2 -LsSf "$FULL_URL" | sh
+          sudo apt-get update
+          sudo apt-get install -y rpm binutils
 
       - name: Build Release Assets
+        shell: bash
         run: |
-          cargo dist build \
-            --tag="${{ github.ref_name }}" \
-            --output-format=json
+          # Use cargo-dist to build installers
+          ~/.cargo/bin/cargo-dist build --tag=${{ github.ref_name }} --output-format=json
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

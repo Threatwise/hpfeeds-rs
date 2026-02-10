@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-hpfeeds-core = { path = "../hpfeeds-core" }
+hpfeeds-core = { version = "0.1.0", path = "../hpfeeds-core" }
 tokio = { version = "1", features = ["macros", "rt", "net"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 bytes = "1"

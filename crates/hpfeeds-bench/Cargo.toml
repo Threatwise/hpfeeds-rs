@@ -5,8 +5,8 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-hpfeeds-client = { path = "../hpfeeds-client" }
-hpfeeds-core = { path = "../hpfeeds-core" }
+hpfeeds-client = { version = "0.1.0", path = "../hpfeeds-client" }
+hpfeeds-core = { version = "0.1.0", path = "../hpfeeds-core" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time", "sync"] }
 clap = { version = "4", features = ["derive"] }
 anyhow = "1.0"
