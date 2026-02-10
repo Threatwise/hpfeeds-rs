@@ -6,9 +6,9 @@ use futures::SinkExt;
 use futures::StreamExt;
 
 use std::sync::Arc;
-use rustls::{ClientConfig, RootCertStore, Certificate};
+use rustls::{ClientConfig, RootCertStore};
 use tokio_rustls::TlsConnector;
-use rustls::client::ServerName;
+use rustls::pki_types::{ServerName, CertificateDer};
 
 pub type Transport<T> = Framed<T, HpfeedsCodec>;
 
@@ -37,17 +37,16 @@ pub async fn connect_and_auth(addr: &str, ident: &str, secret: &str) -> Result<T
 pub async fn connect_tls_and_auth(addr: &str, ident: &str, secret: &str, root_cert: &[u8]) -> Result<Transport<tokio_rustls::client::TlsStream<TcpStream>>> {
     // Build rustls client config with provided root
     let mut roots = RootCertStore::empty();
-    let cert = Certificate(root_cert.to_vec());
-    roots.add(&cert).map_err(|_| anyhow!("invalid root cert"))?;
+    let cert = CertificateDer::from(root_cert.to_vec());
+    roots.add(cert).map_err(|_| anyhow!("invalid root cert"))?;
     let config = ClientConfig::builder()
-        .with_safe_defaults()
         .with_root_certificates(roots)
         .with_no_client_auth();
     let connector = TlsConnector::from(Arc::new(config));
 
     let stream = TcpStream::connect(addr).await?;
     // For tests, we expect the server name to be "localhost"; parse into ServerName
-    let server_name = ServerName::try_from("localhost").map_err(|_| anyhow!("invalid dnsname"))?;
+    let server_name = ServerName::try_from("localhost").map_err(|_| anyhow!("invalid dnsname"))?.to_owned();
     let tls_stream = connector.connect(server_name, stream).await?;
 
     let mut framed = Framed::new(tls_stream, HpfeedsCodec::new());
