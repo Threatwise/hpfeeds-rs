@@ -9,6 +9,6 @@ description = "Core types and codec for the hpfeeds protocol"
 bytes = "1"
 tokio-util = { version = "0.7", features = ["codec"] }
 tokio = { version = "1", features = ["macros", "rt"] }
-thiserror = "1"
+thiserror = "2"
 futures = "0.3"
 sha1 = "0.10"
