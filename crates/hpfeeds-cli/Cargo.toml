@@ -12,4 +12,4 @@ clap = { version = "4", features = ["derive"] }
 anyhow = "1.0"
 bytes = "1"
 futures = "0.3"
-tokio-rusqlite = { version = "0.6", features = ["bundled"] }
+tokio-rusqlite = { version = "0.7", features = ["bundled"] }
