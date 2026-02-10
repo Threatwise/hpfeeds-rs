@@ -11,8 +11,13 @@ pub struct SqliteAuthenticator {
 
 impl SqliteAuthenticator {
     pub async fn new(db_path: &str) -> Result<Self> {
-        if !std::path::Path::new(db_path).exists() {
-            std::fs::File::create(db_path)?;
+        // Prevent path traversal attacks by rejecting paths containing '..'
+        let path = std::path::Path::new(db_path);
+        if path.components().any(|c| c == std::path::Component::ParentDir) {
+            return Err(anyhow::anyhow!("Invalid input: {}", path.display()));
+        }
+        if !path.exists() {
+            std::fs::File::create(path)?;
         }
 
         let conn = Connection::open(db_path).await?;
