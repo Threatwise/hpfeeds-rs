@@ -10,3 +10,5 @@ release/
 .idea/
 .vscode/
 *.rs.bk
+.venv/
+__pycache__/

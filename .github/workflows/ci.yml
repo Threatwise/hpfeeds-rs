@@ -1,10 +1,14 @@
+---
 name: CI
 
-on:
+permissions:
+  contents: read
+
+"on":
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   build:
@@ -13,10 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@<COMMIT_SHA>
         with:
-          toolchain: stable
-          profile: minimal
           components: rustfmt, clippy
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -31,3 +33,10 @@ jobs:
         run: cargo clippy --all -- -D warnings
       - name: Cargo test
         run: cargo test --all --workspace
+        - name: Install cargo-audit
+
+      - name: Run cargo-audit
+        run: |
+          cargo audit --version || true
+          cargo audit
+

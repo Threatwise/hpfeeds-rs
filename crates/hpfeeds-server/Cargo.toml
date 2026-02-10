@@ -29,9 +29,9 @@ rustls-pemfile = "1.0"
 dashmap = "6.0"
 
 # TLS support and test helpers
-rustls = "0.20"
-tokio-rustls = "0.23"
-rcgen = { version = "0.9", default-features = false }
+rustls = "0.21"
+tokio-rustls = "0.24"
+rcgen = { version = "0.10", default-features = false }
 
 [dev-dependencies]
 hpfeeds-client = { path = "../hpfeeds-client" }

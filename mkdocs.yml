@@ -1,6 +1,6 @@
 site_name: hpfeeds-rs
 site_description: High-performance Rust implementation of the hpfeeds protocol.
-repo_url: https://github.com/hpfeeds/hpfeeds-rs # Adjust as needed
+repo_url: https://github.com/YOUR_ORG_NAME/hpfeeds-rs
 
 theme:
   name: material
