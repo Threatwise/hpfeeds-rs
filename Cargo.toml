@@ -4,6 +4,7 @@ members = [
     "crates/hpfeeds-core",
     "crates/hpfeeds-client",
     "crates/hpfeeds-server", "crates/hpfeeds-cli", "crates/hpfeeds-bench", "crates/hpfeeds-collector",
+    "crates/hpfeeds-entrypoint",
 ]
 
 [workspace.metadata.dist]
@@ -16,5 +17,5 @@ installers = ["shell", "powershell", "msi", "deb"]
 # Target platforms to build apps for
 targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
 # Path to the repository
-repository = "https://github.com/hpfeeds/hpfeeds-rs"
+repository = "https://github.com/threatwise/hpfeeds-rs"
 

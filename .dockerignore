@@ -1,0 +1,31 @@
+# Ignore build artifacts and large files that don't need to be sent to Docker daemon
+target/
+**/target/
+**/target/**
+**/tmp/
+.tmp/
+*.log
+**/.git/
+.git
+**/.venv/
+.venv
+**/.venv/**
+**/node_modules/
+node_modules
+**/*.rs.bk
+**/*.so
+**/*.d
+**/.idea/
+**/.vscode/
+.DS_Store
+**/dist/
+**/build/
+**/coverage/
+**/tmp/
+
+# Ignore local container images and caches
+*.tar
+
+# Keep Dockerfile and workflows
+!Dockerfile
+!.github/
