@@ -202,10 +202,10 @@ async fn main() -> Result<()> {
                         })
                         .await?;
 
-                    println!("{:<20} | {:<20}", "IDENT", "SECRET");
-                    println!("{:-<20}-+-{:-<20}", "", "");
-                    for (ident, secret) in users {
-                        println!("{:<20} | {:<20}", ident, secret);
+                    println!("{:<20}", "IDENT");
+                    println!("{:-<20}", "");
+                    for (ident, _secret) in users {
+                        println!("{:<20}", ident);
 
                         // fetch permissions
                         let ident_clone = ident.clone();
