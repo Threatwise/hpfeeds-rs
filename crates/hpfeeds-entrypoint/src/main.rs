@@ -1,7 +1,7 @@
 use std::env;
 use std::ffi::OsString;
-use std::process::Command;
 use std::os::unix::process::CommandExt;
+use std::process::Command;
 
 fn main() {
     // Determine which component to exec (env COMPONENT or default)

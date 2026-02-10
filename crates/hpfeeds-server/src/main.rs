@@ -1,31 +1,31 @@
 use clap::Parser;
+use dashmap::DashMap;
+use futures::StreamExt;
 use hpfeeds_core::{Frame, HpfeedsCodec};
+use rand::RngCore;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::TcpListener;
 use tokio::io::AsyncWriteExt;
-use tokio_util::codec::Framed;
-use futures::StreamExt;
-use tracing::info;
-use rand::RngCore;
+use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use dashmap::DashMap;
+use tokio_util::codec::Framed;
+use tracing::info;
 
-use prometheus::{IntCounter, Opts, Registry, Encoder};
 use anyhow::Result;
+use prometheus::{Encoder, IntCounter, Opts, Registry};
 use tokio_stream::wrappers::BroadcastStream;
 
 mod auth;
 use auth::{Authenticator, MemoryAuthenticator};
 mod config;
 mod db;
+use bytes::{BufMut, Bytes, BytesMut};
 use db::SqliteAuthenticator;
+use http_body_util::Full;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use http_body_util::Full;
-use bytes::{Bytes, BytesMut, BufMut};
 
 #[derive(Parser, Debug)]
 #[clap(name = "hpfeeds-server", about = "hpfeeds broker (Rust)")]
@@ -66,24 +66,61 @@ struct Metrics {
 impl Metrics {
     fn new() -> Self {
         let registry = Registry::new();
-        let total_delivered = IntCounter::with_opts(Opts::new("hpfeeds_delivered_total", "Total messages successfully sent")).unwrap();
-        let total_lagged = IntCounter::with_opts(Opts::new("hpfeeds_lagged_total", "Total messages dropped due to lag")).unwrap();
-        let total_published = IntCounter::with_opts(Opts::new("hpfeeds_published_total", "Total messages received from publishers")).unwrap();
-        let total_auth_success = IntCounter::with_opts(Opts::new("hpfeeds_auth_success_total", "Total successful auths")).unwrap();
-        let total_auth_fail = IntCounter::with_opts(Opts::new("hpfeeds_auth_fail_total", "Total failed auths")).unwrap();
-        registry.register(Box::new(total_delivered.clone())).unwrap();
+        let total_delivered = IntCounter::with_opts(Opts::new(
+            "hpfeeds_delivered_total",
+            "Total messages successfully sent",
+        ))
+        .unwrap();
+        let total_lagged = IntCounter::with_opts(Opts::new(
+            "hpfeeds_lagged_total",
+            "Total messages dropped due to lag",
+        ))
+        .unwrap();
+        let total_published = IntCounter::with_opts(Opts::new(
+            "hpfeeds_published_total",
+            "Total messages received from publishers",
+        ))
+        .unwrap();
+        let total_auth_success = IntCounter::with_opts(Opts::new(
+            "hpfeeds_auth_success_total",
+            "Total successful auths",
+        ))
+        .unwrap();
+        let total_auth_fail =
+            IntCounter::with_opts(Opts::new("hpfeeds_auth_fail_total", "Total failed auths"))
+                .unwrap();
+        registry
+            .register(Box::new(total_delivered.clone()))
+            .unwrap();
         registry.register(Box::new(total_lagged.clone())).unwrap();
-        registry.register(Box::new(total_published.clone())).unwrap();
-        registry.register(Box::new(total_auth_success.clone())).unwrap();
-        registry.register(Box::new(total_auth_fail.clone())).unwrap();
-        Metrics { registry, total_delivered, total_lagged, total_published, total_auth_success, total_auth_fail }
+        registry
+            .register(Box::new(total_published.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(total_auth_success.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(total_auth_fail.clone()))
+            .unwrap();
+        Metrics {
+            registry,
+            total_delivered,
+            total_lagged,
+            total_published,
+            total_auth_success,
+            total_auth_fail,
+        }
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = CliOpts::parse();
-    if opts.json { tracing_subscriber::fmt().json().init(); } else { tracing_subscriber::fmt::init(); }
+    if opts.json {
+        tracing_subscriber::fmt().json().init();
+    } else {
+        tracing_subscriber::fmt::init();
+    }
 
     let addr: SocketAddr = format!("{}:{}", opts.host, opts.port).parse()?;
     let listener = TcpListener::bind(addr).await?;
@@ -97,7 +134,9 @@ async fn main() -> Result<()> {
         }
         info!("TLS enabled with cert: {} and key: {}", cert_path, key_path);
         Some(Arc::new(load_tls_config(cert_path, key_path)?))
-    } else { None };
+    } else {
+        None
+    };
 
     let subscribers: SubscriberMap = Arc::new(DashMap::new());
     let metrics = Arc::new(Metrics::new());
@@ -108,10 +147,21 @@ async fn main() -> Result<()> {
         let mem_auth = Arc::new(MemoryAuthenticator::new());
         if let Some(config_path) = &opts.config {
             let cfg = config::load_config(config_path)?;
-            for user in cfg.users { mem_auth.add_user(&user.ident, &user.secret, user.pub_channels, user.sub_channels).await; }
+            for user in cfg.users {
+                mem_auth
+                    .add_user(
+                        &user.ident,
+                        &user.secret,
+                        user.pub_channels,
+                        user.sub_channels,
+                    )
+                    .await;
+            }
         }
         for a in opts.auth.iter() {
-            if let Some((ident, secret)) = a.split_once(':') { mem_auth.add(ident, secret).await; }
+            if let Some((ident, secret)) = a.split_once(':') {
+                mem_auth.add(ident, secret).await;
+            }
         }
         mem_auth
     };
@@ -121,23 +171,37 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         let listener = TcpListener::bind(metrics_addr).await.unwrap();
         loop {
-            let (stream, _) = match listener.accept().await { Ok(s) => s, Err(_) => continue };
+            let (stream, _) = match listener.accept().await {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
             let io = TokioIo::new(stream);
             let reg = metrics_registry.clone();
             tokio::task::spawn(async move {
-                let _ = http1::Builder::new().serve_connection(io, service_fn(move |req: Request<hyper::body::Incoming>| {
-                    let reg = reg.clone();
-                    async move {
-                        if req.uri().path() == "/metrics" {
-                            let mut buffer = vec![];
-                            prometheus::TextEncoder::new().encode(&reg.gather(), &mut buffer).unwrap();
-                            Ok::<_, anyhow::Error>(Response::new(Full::new(Bytes::from(buffer))))
-                        } else {
-                            let mut res = Response::new(Full::new(Bytes::from("Not Found")));
-                            *res.status_mut() = StatusCode::NOT_FOUND; Ok(res)
-                        }
-                    }
-                })).await;
+                let _ = http1::Builder::new()
+                    .serve_connection(
+                        io,
+                        service_fn(move |req: Request<hyper::body::Incoming>| {
+                            let reg = reg.clone();
+                            async move {
+                                if req.uri().path() == "/metrics" {
+                                    let mut buffer = vec![];
+                                    prometheus::TextEncoder::new()
+                                        .encode(&reg.gather(), &mut buffer)
+                                        .unwrap();
+                                    Ok::<_, anyhow::Error>(Response::new(Full::new(Bytes::from(
+                                        buffer,
+                                    ))))
+                                } else {
+                                    let mut res =
+                                        Response::new(Full::new(Bytes::from("Not Found")));
+                                    *res.status_mut() = StatusCode::NOT_FOUND;
+                                    Ok(res)
+                                }
+                            }
+                        }),
+                    )
+                    .await;
             });
         }
     });
@@ -145,7 +209,12 @@ async fn main() -> Result<()> {
     loop {
         let (socket, peer) = listener.accept().await?;
         let _ = socket.set_nodelay(true);
-        let (subs, mets, auth, tls) = (subscribers.clone(), metrics.clone(), authenticator.clone(), tls_acceptor.clone());
+        let (subs, mets, auth, tls) = (
+            subscribers.clone(),
+            metrics.clone(),
+            authenticator.clone(),
+            tls_acceptor.clone(),
+        );
         tokio::spawn(async move {
             if let Some(acceptor) = tls {
                 if let Ok(stream) = acceptor.accept(socket).await {
@@ -161,39 +230,54 @@ async fn main() -> Result<()> {
 fn load_tls_config(cert_path: &str, key_path: &str) -> Result<tokio_rustls::TlsAcceptor> {
     // Extra safety: check for path traversal or absolute paths
     if !is_safe_relative_path(cert_path) || !is_safe_relative_path(key_path) {
-        return Err(anyhow::anyhow!("Unsafe TLS file path: absolute or parent-directory component detected"));
+        return Err(anyhow::anyhow!(
+            "Unsafe TLS file path: absolute or parent-directory component detected"
+        ));
     }
 
     // Read and parse PEM-encoded certs
     // Prevent path traversal attacks by rejecting paths containing '..'
     let cert_path = std::path::Path::new(cert_path);
-    if cert_path.components().any(|c| c == std::path::Component::ParentDir) {
+    if cert_path
+        .components()
+        .any(|c| c == std::path::Component::ParentDir)
+    {
         return Err(anyhow::anyhow!("Invalid input: {}", cert_path.display()));
     }
     let cert_data = std::fs::read_to_string(cert_path)?;
     let cert_pems = pem::parse_many(&cert_data)?;
-    let cert_chain = cert_pems.into_iter()
+    let cert_chain = cert_pems
+        .into_iter()
         .filter(|p| p.tag() == "CERTIFICATE")
         .map(|p| rustls::pki_types::CertificateDer::from(p.contents().to_vec()))
         .collect::<Vec<_>>();
     if cert_chain.is_empty() {
-        return Err(anyhow::anyhow!("no certificates found in {}", cert_path.display()));
+        return Err(anyhow::anyhow!(
+            "no certificates found in {}",
+            cert_path.display()
+        ));
     }
 
     // Read and parse PEM-encoded private key (support PKCS#8 / PKCS#1 / EC)
     // Prevent path traversal attacks by rejecting paths containing '..'
     let key_path = std::path::Path::new(key_path);
-    if key_path.components().any(|c| c == std::path::Component::ParentDir) {
+    if key_path
+        .components()
+        .any(|c| c == std::path::Component::ParentDir)
+    {
         return Err(anyhow::anyhow!("Invalid input: {}", key_path.display()));
     }
     let key_data = std::fs::read_to_string(key_path)?;
     let key_pems = pem::parse_many(&key_data)?;
-    let key_pem = key_pems.into_iter().find(|p| {
-        let t = p.tag();
-        t == "PRIVATE KEY" || t == "RSA PRIVATE KEY" || t == "EC PRIVATE KEY"
-    })
+    let key_pem = key_pems
+        .into_iter()
+        .find(|p| {
+            let t = p.tag();
+            t == "PRIVATE KEY" || t == "RSA PRIVATE KEY" || t == "EC PRIVATE KEY"
+        })
         .ok_or_else(|| anyhow::anyhow!("no private key found"))?;
-    let key = rustls::pki_types::PrivateKeyDer::try_from(key_pem.contents().to_vec()).map_err(|e| anyhow::anyhow!(e))?;
+    let key = rustls::pki_types::PrivateKeyDer::try_from(key_pem.contents().to_vec())
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
@@ -204,9 +288,13 @@ fn load_tls_config(cert_path: &str, key_path: &str) -> Result<tokio_rustls::TlsA
 /// Return false for absolute paths or any parent-directory (`..`) components.
 fn is_safe_relative_path(p: &str) -> bool {
     let path = std::path::Path::new(p);
-    if path.is_absolute() { return false; }
+    if path.is_absolute() {
+        return false;
+    }
     for comp in path.components() {
-        if matches!(comp, std::path::Component::ParentDir) { return false; }
+        if matches!(comp, std::path::Component::ParentDir) {
+            return false;
+        }
     }
     true
 }
@@ -216,24 +304,43 @@ async fn handle_connection<S>(
     _peer: SocketAddr,
     subscribers: SubscriberMap,
     metrics: Arc<Metrics>,
-    authenticator: Arc<dyn Authenticator>
-) where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
+    authenticator: Arc<dyn Authenticator>,
+) where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
     let (reader, mut writer) = tokio::io::split(stream);
     let mut read_framed = Framed::new(reader, HpfeedsCodec::new());
     let mut codec = HpfeedsCodec::new();
 
     let mut randbuf = vec![0u8; 16];
     rand::thread_rng().fill_bytes(&mut randbuf);
-    let info_bytes = codec.encode_to_bytes(Frame::Info { name: "hpfeeds-rs".to_string().into(), rand: randbuf.clone().into() }).unwrap();
-    if writer.write_all(&info_bytes).await.is_err() { return; }
+    let info_bytes = codec
+        .encode_to_bytes(Frame::Info {
+            name: "hpfeeds-rs".to_string().into(),
+            rand: randbuf.clone().into(),
+        })
+        .unwrap();
+    if writer.write_all(&info_bytes).await.is_err() {
+        return;
+    }
 
     use auth::AccessContext;
-    let access_ctx: AccessContext = if let Some(Ok(Frame::Auth { ident, secret_hash })) = read_framed.next().await {
-        let ident_str = String::from_utf8_lossy(&ident);
-        if let Some(ctx) = authenticator.authenticate(&ident_str, &secret_hash, &randbuf).await {
-            metrics.total_auth_success.inc(); ctx
-        } else { metrics.total_auth_fail.inc(); return; }
-    } else { return; };
+    let access_ctx: AccessContext =
+        if let Some(Ok(Frame::Auth { ident, secret_hash })) = read_framed.next().await {
+            let ident_str = String::from_utf8_lossy(&ident);
+            if let Some(ctx) = authenticator
+                .authenticate(&ident_str, &secret_hash, &randbuf)
+                .await
+            {
+                metrics.total_auth_success.inc();
+                ctx
+            } else {
+                metrics.total_auth_fail.inc();
+                return;
+            }
+        } else {
+            return;
+        };
 
     let mut write_buf = BytesMut::with_capacity(CHANNEL_SIZE);
     let mut stream_map = tokio_stream::StreamMap::new();

@@ -1,6 +1,6 @@
 use std::process::{Command, Stdio};
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 // We can't easily spawn the server binary from an integration test and share the in-memory registry
 // because integration tests run as separate binaries.
@@ -31,7 +31,10 @@ fn metrics_endpoint_exposes_counters() {
         // No, main.rs logic (which spawns the metrics server) is in bin, not lib.
         // So we must spawn the binary.
         // Let's assume standard cargo layout.
-        eprintln!("Skipping metrics test because server binary not found at {:?}. Run `cargo build --bin hpfeeds-server` first.", server_bin);
+        eprintln!(
+            "Skipping metrics test because server binary not found at {:?}. Run `cargo build --bin hpfeeds-server` first.",
+            server_bin
+        );
         return;
     }
 
@@ -73,7 +76,10 @@ fn metrics_endpoint_exposes_counters() {
     assert!(body.contains("hpfeeds_connections_total"));
     // We expect at least 1 connection (the one we just made)
     // The counter format is usually: hpfeeds_connections_total 1
-    assert!(body.contains("hpfeeds_connections_total 1") || body.contains("hpfeeds_connections_total 2"));
+    assert!(
+        body.contains("hpfeeds_connections_total 1")
+            || body.contains("hpfeeds_connections_total 2")
+    );
 
     // cleanup
     let _ = child.kill();

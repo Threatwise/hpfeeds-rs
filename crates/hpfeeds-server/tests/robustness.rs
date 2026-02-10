@@ -1,9 +1,9 @@
-use hpfeeds_core::{Frame, HpfeedsCodec};
-use tokio::net::TcpListener;
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
-use tokio_util::codec::Framed;
-use futures::{SinkExt, StreamExt};
 use bytes::{BufMut, Bytes};
+use futures::{SinkExt, StreamExt};
+use hpfeeds_core::{Frame, HpfeedsCodec};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio_util::codec::Framed;
 
 #[tokio::test]
 async fn rejects_invalid_opcode() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +14,13 @@ async fn rejects_invalid_opcode() -> Result<(), Box<dyn std::error::Error>> {
         let (socket, _) = listener.accept().await.unwrap();
         let mut framed = Framed::new(socket, HpfeedsCodec::new());
         let randbuf = vec![1u8, 2, 3, 4];
-        framed.send(Frame::Info { name: Bytes::from_static(b"test"), rand: randbuf.into() }).await.unwrap();
+        framed
+            .send(Frame::Info {
+                name: Bytes::from_static(b"test"),
+                rand: randbuf.into(),
+            })
+            .await
+            .unwrap();
         while framed.next().await.is_some() {}
     });
 
@@ -31,7 +37,9 @@ async fn rejects_invalid_opcode() -> Result<(), Box<dyn std::error::Error>> {
     let mut read_buf = [0u8; 1024];
     loop {
         let n = stream.read(&mut read_buf).await?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
     }
     Ok(())
 }
@@ -45,7 +53,13 @@ async fn rejects_malformed_string_length() -> Result<(), Box<dyn std::error::Err
         let (socket, _) = listener.accept().await.unwrap();
         let mut framed = Framed::new(socket, HpfeedsCodec::new());
         let randbuf = vec![1u8, 2, 3, 4];
-        framed.send(Frame::Info { name: Bytes::from_static(b"test"), rand: randbuf.into() }).await.unwrap();
+        framed
+            .send(Frame::Info {
+                name: Bytes::from_static(b"test"),
+                rand: randbuf.into(),
+            })
+            .await
+            .unwrap();
         while framed.next().await.is_some() {}
     });
 
@@ -61,7 +75,9 @@ async fn rejects_malformed_string_length() -> Result<(), Box<dyn std::error::Err
     let mut read_buf = [0u8; 1024];
     loop {
         let n = stream.read(&mut read_buf).await?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
     }
     Ok(())
 }

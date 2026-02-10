@@ -1,12 +1,12 @@
+use anyhow::Result;
 use clap::Parser;
+use futures::{SinkExt, StreamExt};
 use hpfeeds_client::connect_and_auth;
 use hpfeeds_core::Frame;
-use anyhow::Result;
-use futures::{SinkExt, StreamExt};
 use std::sync::Arc;
-use tokio::sync::Barrier;
-use std::time::{Duration, Instant};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+use tokio::sync::Barrier;
 
 #[derive(Parser, Debug)]
 #[clap(name = "hpfeeds-bench", about = "Benchmarking tool for hpfeeds")]
@@ -105,8 +105,10 @@ async fn main() -> Result<()> {
         println!("Database seeded.");
     }
 
-    println!("Starting benchmark with {} subs, {} pubs, {} msgs/pub, payload {} bytes",
-             args.subs, args.pubs, args.msgs, args.payload_size);
+    println!(
+        "Starting benchmark with {} subs, {} pubs, {} msgs/pub, payload {} bytes",
+        args.subs, args.pubs, args.msgs, args.payload_size
+    );
 
     let total_expected = (args.pubs * args.msgs * args.subs) as u64;
     let received_count = Arc::new(AtomicU64::new(0));
@@ -130,10 +132,13 @@ async fn main() -> Result<()> {
                     return;
                 }
             };
-            if let Err(e) = client.send(Frame::Subscribe {
-                ident: ident.clone().into(),
-                channel: channel.into()
-            }).await {
+            if let Err(e) = client
+                .send(Frame::Subscribe {
+                    ident: ident.clone().into(),
+                    channel: channel.into(),
+                })
+                .await
+            {
                 eprintln!("Sub {} subscribe failed: {}", i, e);
                 barrier.wait().await;
                 return;
@@ -183,17 +188,22 @@ async fn main() -> Result<()> {
             loop {
                 // Check termination condition
                 if let Some(d) = run_duration {
-                    if start.elapsed() >= d { break; }
+                    if start.elapsed() >= d {
+                        break;
+                    }
                 } else if count >= msgs {
                     break;
                 }
 
                 // Tight loop for publishing
-                if let Err(e) = client.send(Frame::Publish {
-                    ident: ident.clone().into(),
-                    channel: channel.clone().into(),
-                    payload: p.clone()
-                }).await {
+                if let Err(e) = client
+                    .send(Frame::Publish {
+                        ident: ident.clone().into(),
+                        channel: channel.clone().into(),
+                        payload: p.clone(),
+                    })
+                    .await
+                {
                     eprintln!("Pub {} failed: {}", i, e);
                     break;
                 }
@@ -217,7 +227,11 @@ async fn main() -> Result<()> {
         let current_count = received_count.load(Ordering::Relaxed);
         let elapsed = last_report.elapsed().as_secs_f64();
         let delta = current_count - last_count;
-        println!("Received: {} ({:.2} msg/s)", current_count, delta as f64 / elapsed);
+        println!(
+            "Received: {} ({:.2} msg/s)",
+            current_count,
+            delta as f64 / elapsed
+        );
 
         last_report = Instant::now();
         last_count = current_count;
@@ -239,8 +253,15 @@ async fn main() -> Result<()> {
     println!("--- Benchmark Results ---");
     println!("Total Messages Received: {}", final_count);
     println!("Total Time: {:.2?}", total_elapsed);
-    println!("Throughput: {:.2} msg/s", final_count as f64 / total_elapsed.as_secs_f64());
-    println!("Data Rate: {:.2} MB/s", (final_count * args.payload_size as u64) as f64 / (1024.0 * 1024.0 * total_elapsed.as_secs_f64()));
+    println!(
+        "Throughput: {:.2} msg/s",
+        final_count as f64 / total_elapsed.as_secs_f64()
+    );
+    println!(
+        "Data Rate: {:.2} MB/s",
+        (final_count * args.payload_size as u64) as f64
+            / (1024.0 * 1024.0 * total_elapsed.as_secs_f64())
+    );
 
     Ok(())
 }

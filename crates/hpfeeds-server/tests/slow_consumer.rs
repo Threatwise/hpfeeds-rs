@@ -1,11 +1,11 @@
-use hpfeeds_core::Frame;
-use hpfeeds_client::connect_and_auth;
-use tokio::time::Duration;
+use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
+use hpfeeds_client::connect_and_auth;
+use hpfeeds_core::Frame;
 use prometheus::{IntCounter, Opts, Registry};
 use std::sync::{Arc, Mutex};
+use tokio::time::Duration;
 use tracing::warn;
-use bytes::Bytes;
 
 struct TestWriter(Arc<Mutex<Vec<String>>>);
 impl std::io::Write for TestWriter {
@@ -16,16 +16,25 @@ impl std::io::Write for TestWriter {
         }
         Ok(buf.len())
     }
-    fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 #[tokio::test]
 async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn std::error::Error>> {
     let logs = Arc::new(Mutex::new(Vec::new()));
     let logs_clone_for_tracing = logs.clone();
-    let tracing_init_ok = tracing_subscriber::fmt().with_writer(move || TestWriter(logs_clone_for_tracing.clone())).try_init().is_ok();
+    let tracing_init_ok = tracing_subscriber::fmt()
+        .with_writer(move || TestWriter(logs_clone_for_tracing.clone()))
+        .try_init()
+        .is_ok();
 
-    let dropped = IntCounter::with_opts(Opts::new("hpfeeds_dropped_total", "Total messages dropped due to slow consumers")).unwrap();
+    let dropped = IntCounter::with_opts(Opts::new(
+        "hpfeeds_dropped_total",
+        "Total messages dropped due to slow consumers",
+    ))
+    .unwrap();
     let registry = Registry::new();
     registry.register(Box::new(dropped.clone())).unwrap();
 
@@ -41,11 +50,21 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
             let dropped_clone = dropped_clone.clone();
             let subs = subs_for_accept.clone();
             tokio::spawn(async move {
-                let framed = tokio_util::codec::Framed::new(socket, hpfeeds_core::HpfeedsCodec::new());
+                let framed =
+                    tokio_util::codec::Framed::new(socket, hpfeeds_core::HpfeedsCodec::new());
                 let (mut sink, mut stream) = framed.split();
-                let randbuf = vec![9u8,9,9,9];
-                sink.send(Frame::Info { name: Bytes::from_static(b"slow-broker"), rand: randbuf.clone().into() }).await.expect("send info");
-                if let Some(Ok(Frame::Auth { ident: _, secret_hash })) = stream.next().await {
+                let randbuf = vec![9u8, 9, 9, 9];
+                sink.send(Frame::Info {
+                    name: Bytes::from_static(b"slow-broker"),
+                    rand: randbuf.clone().into(),
+                })
+                .await
+                .expect("send info");
+                if let Some(Ok(Frame::Auth {
+                    ident: _,
+                    secret_hash,
+                })) = stream.next().await
+                {
                     assert_eq!(secret_hash, hpfeeds_core::hashsecret(&randbuf, "s3cret"));
                 } else {
                     return;
@@ -59,7 +78,11 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
                             subs.lock().unwrap().push(tx.clone());
                         }
                         Frame::Publish { payload, .. } => {
-                            let f = Frame::Publish { ident: Bytes::from_static(b"pub"), channel: Bytes::from_static(b"ch"), payload };
+                            let f = Frame::Publish {
+                                ident: Bytes::from_static(b"pub"),
+                                channel: Bytes::from_static(b"ch"),
+                                payload,
+                            };
                             let mut to_remove = Vec::new();
                             for (i, s) in subs.lock().unwrap().iter().enumerate() {
                                 match s.try_send(f.clone()) {
@@ -75,7 +98,9 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
                             }
                             if !to_remove.is_empty() {
                                 let mut guard = subs.lock().unwrap();
-                                for idx in to_remove.into_iter().rev() { guard.remove(idx); }
+                                for idx in to_remove.into_iter().rev() {
+                                    guard.remove(idx);
+                                }
                             }
                         }
                         _ => {}
@@ -86,19 +111,32 @@ async fn slow_consumer_drops_messages_and_logs_warning() -> Result<(), Box<dyn s
     });
 
     let mut sub = connect_and_auth(&addr.to_string(), "client1", "s3cret").await?;
-    sub.send(Frame::Subscribe { ident: Bytes::from_static(b"client1"), channel: Bytes::from_static(b"ch") }).await?;
+    sub.send(Frame::Subscribe {
+        ident: Bytes::from_static(b"client1"),
+        channel: Bytes::from_static(b"ch"),
+    })
+    .await?;
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 
     let mut pubc = connect_and_auth(&addr.to_string(), "client1", "s3cret").await?;
     for _ in 0..10 {
-        pubc.send(Frame::Publish { ident: Bytes::from_static(b"pub"), channel: Bytes::from_static(b"ch"), payload: Bytes::from_static(b"\x01\x02\x03") }).await?;
+        pubc.send(Frame::Publish {
+            ident: Bytes::from_static(b"pub"),
+            channel: Bytes::from_static(b"ch"),
+            payload: Bytes::from_static(b"\x01\x02\x03"),
+        })
+        .await?;
     }
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let dropped_val = dropped.get();
-    assert!(dropped_val > 0, "expected dropped messages, got {}", dropped_val);
+    assert!(
+        dropped_val > 0,
+        "expected dropped messages, got {}",
+        dropped_val
+    );
 
     if tracing_init_ok {
         let logs_guard = logs.lock().unwrap();

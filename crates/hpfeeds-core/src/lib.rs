@@ -16,17 +16,36 @@ pub const MAXBUF: usize = 1024 * 1024;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Frame {
     Error(Bytes),
-    Info { name: Bytes, rand: Bytes },
-    Auth { ident: Bytes, secret_hash: Bytes },
-    Publish { ident: Bytes, channel: Bytes, payload: Bytes },
-    Subscribe { ident: Bytes, channel: Bytes },
-    Unsubscribe { ident: Bytes, channel: Bytes },
+    Info {
+        name: Bytes,
+        rand: Bytes,
+    },
+    Auth {
+        ident: Bytes,
+        secret_hash: Bytes,
+    },
+    Publish {
+        ident: Bytes,
+        channel: Bytes,
+        payload: Bytes,
+    },
+    Subscribe {
+        ident: Bytes,
+        channel: Bytes,
+    },
+    Unsubscribe {
+        ident: Bytes,
+        channel: Bytes,
+    },
 }
 
 pub fn strpack8(s: &str) -> Result<Vec<u8>, io::Error> {
     let b = s.as_bytes();
     if b.len() > 255 {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "string too long for strpack8"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "string too long for strpack8",
+        ));
     }
     let mut v = Vec::with_capacity(1 + b.len());
     v.push(b.len() as u8);
@@ -37,7 +56,10 @@ pub fn strpack8(s: &str) -> Result<Vec<u8>, io::Error> {
 // Internal helper for packing Bytes as str8
 fn pack_str8_bytes(b: &Bytes) -> Result<Vec<u8>, io::Error> {
     if b.len() > 255 {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "string too long for strpack8"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "string too long for strpack8",
+        ));
     }
     let mut v = Vec::with_capacity(1 + b.len());
     v.push(b.len() as u8);
@@ -47,11 +69,17 @@ fn pack_str8_bytes(b: &Bytes) -> Result<Vec<u8>, io::Error> {
 
 pub fn strunpack8(data: &[u8]) -> Result<(String, &[u8]), io::Error> {
     if data.is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "empty string buffer"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "empty string buffer",
+        ));
     }
     let len = data[0] as usize;
     if data.len() < 1 + len {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "string buffer too short"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "string buffer too short",
+        ));
     }
     let s = String::from_utf8(data[1..1 + len].to_vec())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid utf-8 string"))?;
@@ -60,9 +88,16 @@ pub fn strunpack8(data: &[u8]) -> Result<(String, &[u8]), io::Error> {
 
 // Helper for decoding from Bytes
 fn read_str8_bytes(buf: &mut Bytes) -> Result<Bytes, io::Error> {
-    if buf.is_empty() { return Err(io::Error::new(io::ErrorKind::InvalidData, "empty buffer")); }
+    if buf.is_empty() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "empty buffer"));
+    }
     let len = buf[0] as usize;
-    if buf.len() < 1 + len { return Err(io::Error::new(io::ErrorKind::InvalidData, "buffer too short")); }
+    if buf.len() < 1 + len {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "buffer too short",
+        ));
+    }
     buf.advance(1);
     Ok(buf.split_to(len))
 }
@@ -106,7 +141,10 @@ impl Decoder for HpfeedsCodec {
         let len = (&src[..4]).get_u32() as usize;
 
         if len > MAXBUF {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "message too large"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "message too large",
+            ));
         }
 
         // Peek opcode if we have enough bytes (4 len + 1 opcode)
@@ -127,7 +165,10 @@ impl Decoder for HpfeedsCodec {
 
             let limit = 5 + max_op_len;
             if len > limit {
-                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!("message too large for opcode {}", op)));
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("message too large for opcode {}", op),
+                ));
             }
         }
 
@@ -146,9 +187,7 @@ impl Decoder for HpfeedsCodec {
         let op = msg.split_to(1)[0];
 
         match op {
-            OP_ERROR => {
-                Ok(Some(Frame::Error(msg)))
-            }
+            OP_ERROR => Ok(Some(Frame::Error(msg))),
             OP_INFO => {
                 let name = read_str8_bytes(&mut msg)?;
                 Ok(Some(Frame::Info { name, rand: msg }))
@@ -171,11 +210,17 @@ impl Decoder for HpfeedsCodec {
             }
             OP_SUBSCRIBE => {
                 let ident = read_str8_bytes(&mut msg)?;
-                Ok(Some(Frame::Subscribe { ident, channel: msg }))
+                Ok(Some(Frame::Subscribe {
+                    ident,
+                    channel: msg,
+                }))
             }
             OP_UNSUBSCRIBE => {
                 let ident = read_str8_bytes(&mut msg)?;
-                Ok(Some(Frame::Unsubscribe { ident, channel: msg }))
+                Ok(Some(Frame::Unsubscribe {
+                    ident,
+                    channel: msg,
+                }))
             }
             other => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -205,7 +250,11 @@ impl Encoder<Frame> for HpfeedsCodec {
                 data.extend_from_slice(&secret_hash);
                 OP_AUTH
             }
-            Frame::Publish { ident, channel, payload } => {
+            Frame::Publish {
+                ident,
+                channel,
+                payload,
+            } => {
                 data.extend_from_slice(&pack_str8_bytes(&ident)?);
                 data.extend_from_slice(&pack_str8_bytes(&channel)?);
                 data.extend_from_slice(&payload);
@@ -254,7 +303,10 @@ mod tests {
     #[test]
     fn info_roundtrip() {
         let mut codec = HpfeedsCodec::new();
-        let frame = Frame::Info { name: Bytes::from_static(b"hpfeeds"), rand: Bytes::from_static(&[1, 2, 3, 4]) };
+        let frame = Frame::Info {
+            name: Bytes::from_static(b"hpfeeds"),
+            rand: Bytes::from_static(&[1, 2, 3, 4]),
+        };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();
         let decoded = codec.decode(&mut buf).unwrap().unwrap();
@@ -267,7 +319,7 @@ mod tests {
         let frame = Frame::Publish {
             ident: Bytes::from_static(b"client1"),
             channel: Bytes::from_static(b"ch1"),
-            payload: Bytes::from_static(b"hello")
+            payload: Bytes::from_static(b"hello"),
         };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();
@@ -280,7 +332,7 @@ mod tests {
         let mut codec = HpfeedsCodec::new();
         let frame = Frame::Subscribe {
             ident: Bytes::from_static(b"client1"),
-            channel: Bytes::from_static(b"ch1")
+            channel: Bytes::from_static(b"ch1"),
         };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();
@@ -293,7 +345,7 @@ mod tests {
         let mut codec = HpfeedsCodec::new();
         let frame = Frame::Unsubscribe {
             ident: Bytes::from_static(b"client1"),
-            channel: Bytes::from_static(b"ch1")
+            channel: Bytes::from_static(b"ch1"),
         };
         let mut buf = BytesMut::new();
         codec.encode(frame.clone(), &mut buf).unwrap();
@@ -310,4 +362,3 @@ mod tests {
         assert_eq!(expected.len(), 20);
     }
 }
-

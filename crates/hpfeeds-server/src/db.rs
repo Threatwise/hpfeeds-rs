@@ -1,7 +1,7 @@
 use crate::auth::{AccessContext, Authenticator};
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio_rusqlite::{rusqlite, Connection};
+use tokio_rusqlite::{Connection, rusqlite};
 use tracing::info;
 
 #[derive(Clone)]
@@ -13,7 +13,10 @@ impl SqliteAuthenticator {
     pub async fn new(db_path: &str) -> Result<Self> {
         // Prevent path traversal attacks by rejecting paths containing '..'
         let path = std::path::Path::new(db_path);
-        if path.components().any(|c| c == std::path::Component::ParentDir) {
+        if path
+            .components()
+            .any(|c| c == std::path::Component::ParentDir)
+        {
             return Err(anyhow::anyhow!("Invalid input: {}", path.display()));
         }
         if !path.exists() {
