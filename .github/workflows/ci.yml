@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@<COMMIT_SHA>
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Cache cargo registry

@@ -1,0 +1,11 @@
+[Unit]
+Description=hpfeeds-rs Collector
+After=network.target hpfeeds-server.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hpfeeds-collector
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

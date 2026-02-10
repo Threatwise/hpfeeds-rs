@@ -24,3 +24,12 @@ elasticsearch = { version = "8.5.0-alpha.1", default-features = false, features 
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "json"] }
 rskafka = "0.4"
 
+[package.metadata.deb]
+maintainer = "HPFeeds Maintainers <maintainers@hpfeeds.io>"
+copyright = "2024, HPFeeds Maintainers"
+license-file = ["../../LICENSE", "0"]
+assets = [
+    ["../../target/release/hpfeeds-collector", "/usr/bin/hpfeeds-collector", "755"],
+    ["../../init/hpfeeds-collector.service", "/lib/systemd/system/hpfeeds-collector.service", "644"],
+]
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=hpfeeds-rs Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hpfeeds-server --host 0.0.0.0
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

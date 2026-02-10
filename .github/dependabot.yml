@@ -1,12 +1,12 @@
 version: 2
 updates:
-  - package-ecosystem: "cargo"
-    directory: "/"
+  - package-ecosystem: cargo
+    directory: /
     schedule:
-      interval: "daily"
+      interval: daily
     open-pull-requests-limit: 5
     allow:
-      - dependency-type: "all"
+      - dependency-type: all
     labels:
-      - "dependencies"
-      - "auto-update"
+      - dependencies
+      - auto-update

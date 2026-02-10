@@ -33,6 +33,15 @@ rustls = "0.21"
 tokio-rustls = "0.24"
 rcgen = { version = "0.10", default-features = false }
 
+[package.metadata.deb]
+maintainer = "HPFeeds Maintainers <maintainers@hpfeeds.io>"
+copyright = "2024, HPFeeds Maintainers"
+license-file = ["../../LICENSE", "0"]
+assets = [
+    ["../../target/release/hpfeeds-server", "/usr/bin/hpfeeds-server", "755"],
+    ["../../init/hpfeeds-server.service", "/lib/systemd/system/hpfeeds-server.service", "644"],
+]
+
 [dev-dependencies]
 hpfeeds-client = { version = "0.1.0", path = "../hpfeeds-client" }
 tokio = { version = "1", features = ["macros", "rt", "time"] }
