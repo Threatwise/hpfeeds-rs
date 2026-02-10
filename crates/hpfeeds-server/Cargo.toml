@@ -31,7 +31,7 @@ dashmap = "6.0"
 # TLS support and test helpers
 rustls = { version = "0.23", features = ["aws_lc_rs"] }
 tokio-rustls = "0.26"
-rcgen = { version = "0.13", default-features = false, features = ["pem", "crypto", "aws_lc_rs"] }
+rcgen = { version = "0.14", default-features = false, features = ["pem", "crypto", "aws_lc_rs"] }
 
 [package.metadata.deb]
 maintainer = "HPFeeds Maintainers <maintainers@hpfeeds.io>"
