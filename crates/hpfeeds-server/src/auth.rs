@@ -1,8 +1,8 @@
 use async_trait::async_trait;
+use hpfeeds_core::hashsecret;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use hpfeeds_core::hashsecret;
 
 /// Permissions for an authenticated user
 #[derive(Debug, Clone, PartialEq)]
@@ -25,7 +25,12 @@ impl AccessContext {
 /// Authenticator trait used by the server to verify client credentials.
 #[async_trait]
 pub trait Authenticator: Send + Sync {
-    async fn authenticate(&self, ident: &str, secret_hash: &[u8], rand: &[u8]) -> Option<AccessContext>;
+    async fn authenticate(
+        &self,
+        ident: &str,
+        secret_hash: &[u8],
+        rand: &[u8],
+    ) -> Option<AccessContext>;
 }
 
 struct UserData {
@@ -42,27 +47,44 @@ pub struct MemoryAuthenticator {
 
 impl MemoryAuthenticator {
     pub fn new() -> Self {
-        Self { inner: Arc::new(RwLock::new(HashMap::new())) }
+        Self {
+            inner: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 
     pub async fn add(&self, ident: &str, secret: &str) {
         // Default: allow all for backwards compat until we have config
-        self.add_user(ident, secret, vec!["*".to_string()], vec!["*".to_string()]).await;
+        self.add_user(ident, secret, vec!["*".to_string()], vec!["*".to_string()])
+            .await;
     }
 
-    pub async fn add_user(&self, ident: &str, secret: &str, pub_channels: Vec<String>, sub_channels: Vec<String>) {
+    pub async fn add_user(
+        &self,
+        ident: &str,
+        secret: &str,
+        pub_channels: Vec<String>,
+        sub_channels: Vec<String>,
+    ) {
         let mut m = self.inner.write().await;
-        m.insert(ident.to_string(), UserData {
-            secret: secret.to_string(),
-            pub_channels,
-            sub_channels,
-        });
+        m.insert(
+            ident.to_string(),
+            UserData {
+                secret: secret.to_string(),
+                pub_channels,
+                sub_channels,
+            },
+        );
     }
 }
 
 #[async_trait]
 impl Authenticator for MemoryAuthenticator {
-    async fn authenticate(&self, ident: &str, secret_hash: &[u8], rand: &[u8]) -> Option<AccessContext> {
+    async fn authenticate(
+        &self,
+        ident: &str,
+        secret_hash: &[u8],
+        rand: &[u8],
+    ) -> Option<AccessContext> {
         let m = self.inner.read().await;
         if let Some(user) = m.get(ident) {
             let expected = hashsecret(rand, &user.secret);
