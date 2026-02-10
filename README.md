@@ -1,19 +1,33 @@
 # hpfeeds-rs
 
-A modern, high-performance, async Rust implementation of the [HPFeeds](https://github.com/hpfeeds/hp
-feeds) protocol.
+## Building Docker images locally ⚙️
 
-This project is a wire-compatible, drop-in replacement for original HPFeeds brokers, optimized for e
-xtreme throughput (3.6M+ msg/s) and production reliability.
+The Docker build currently uses BuildKit (via `docker buildx`) for better caching and multi-platform builds. If your local Docker reports "Install the buildx component" or a missing `docker-buildx` binary, enable buildx with one of the following options:
+
+- Use Docker Desktop (Buildx is included and enabled by default).
+- On Linux, create and use a buildx builder:
+
+```bash
+# create a new buildx builder and use it
+docker buildx create --use --name mybuilder
+# verify
+docker buildx inspect --bootstrap
+```
+
+- If you prefer the legacy builder, install the Docker CLI Buildx plugin as documented in the [Docker Buildx docs](https://docs.docker.com/buildx/working-with-buildx/).
+
+Also, to avoid sending large build contexts to the daemon, a `.dockerignore` file was added to exclude `target/`, `.git`, `.venv`, and other common dev directories. This should dramatically reduce the context size when running `docker build .`.
+
+
+A modern, high-performance, async Rust implementation of the [HPFeeds](https://github.com/hpfeeds/hpfeeds) protocol.
+
+This project is a wire-compatible, drop-in replacement for original HPFeeds brokers, optimized for extreme throughput (3.6M+ msg/s) and production reliability.
 
 ## Key Components
 
-- **`hpfeeds-server`**: The central broker. Supports SQLite/JSON auth, granular ACLs, native TLS, an
-d Prometheus metrics.
-- **`hpfeeds-collector`**: A universal data bridge with "batteries included" sinks for Splunk, Kafka
-, Postgres, Mongo, Elastic, and more.
-- **`hpfeeds-cli`**: Command-line tool for publishing, subscribing, and managing the SQLite user dat
-abase.
+- **`hpfeeds-server`**: The central broker. Supports SQLite/JSON auth, granular ACLs, native TLS, and Prometheus metrics.
+- **`hpfeeds-collector`**: A universal data bridge with "batteries included" sinks for Splunk, Kafka, Postgres, Mongo, Elasticsearch, and more.
+- **`hpfeeds-cli`**: Command-line tool for publishing, subscribing, and managing the SQLite user database.
 - **`hpfeeds-client`**: Robust Rust library for building high-speed honeypots.
 
 ## Features
@@ -38,12 +52,12 @@ The collector is the bridge between the broker and your analysis stack. It suppo
 sinks:
 
 | Sink | Use Case | Config Flag |
-| :--- | :--- | :--- |
+| --- | --- | --- |
 | **Splunk HEC** | Modern direct Splunk ingestion | `--output splunk-hec` |
 | **Kafka** | High-volume data lakes (Redpanda/Kafka) | `--output kafka` |
 | **PostgreSQL** | Relational long-term storage | `--output postgres` |
 | **MongoDB** | Flexible NoSQL storage | `--output mongo` |
-| **Elasticsearch**| Search and Dashboards (Kibana) | `--output elastic` |
+| **Elasticsearch** | Search and Dashboards (Kibana) | `--output elastic` |
 | **Redis** | Real-time Honeymaps (NodeJS/Go) | `--output redis` |
 | **STIX 2.1** | Standard Threat Intel Feeds (MISP) | `--output stix` |
 | **Syslog** | Legacy Enterprise SIEMs (RFC 5424) | `--output syslog` |
@@ -52,15 +66,14 @@ sinks:
 
 ### Example: Feed your Honeymap via Redis
 ```bash
-./target/release/hpfeeds-collector -i admin -s secret --output redis --redis-url "redis://localhost/
-"
+./target/release/hpfeeds-collector -i admin -s secret --output redis --redis-url "redis://localhost/"
 ```
 
 ### Example: Professional Archival to Postgres
 ```bash
-./target/release/hpfeeds-collector -i admin -s secret --output postgres --postgres-url "postgres://u
-ser:pass@host/db"
+./target/release/hpfeeds-collector -i admin -s secret --output postgres --postgres-url "postgres://user:pass@host/db"
 ```
+
 
 ## Running the Broker
 
