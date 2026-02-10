@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
     } else { None };
 
     let mut redis_conn = if args.output == "redis" {
-        Some(redis::Client::open(args.redis_url.clone())?.get_async_connection().await?)
+        Some(redis::Client::open(args.redis_url.clone())?.get_multiplexed_async_connection().await?)
     } else { None };
 
     let pg_pool = if args.output == "postgres" {
