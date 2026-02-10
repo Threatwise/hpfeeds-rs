@@ -165,6 +165,11 @@ fn load_tls_config(cert_path: &str, key_path: &str) -> Result<tokio_rustls::TlsA
     }
 
     // Read and parse PEM-encoded certs
+    // Prevent path traversal attacks by rejecting paths containing '..'
+    let cert_path = std::path::Path::new(cert_path);
+    if cert_path.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err(anyhow::anyhow!("Invalid input: {}", cert_path.display()));
+    }
     let cert_data = std::fs::read_to_string(cert_path)?;
     let cert_pems = pem::parse_many(&cert_data)?;
     let cert_chain = cert_pems.into_iter()
@@ -172,10 +177,15 @@ fn load_tls_config(cert_path: &str, key_path: &str) -> Result<tokio_rustls::TlsA
         .map(|p| rustls::pki_types::CertificateDer::from(p.contents().to_vec()))
         .collect::<Vec<_>>();
     if cert_chain.is_empty() {
-        return Err(anyhow::anyhow!("no certificates found in {}", cert_path));
+        return Err(anyhow::anyhow!("no certificates found in {}", cert_path.display()));
     }
 
     // Read and parse PEM-encoded private key (support PKCS#8 / PKCS#1 / EC)
+    // Prevent path traversal attacks by rejecting paths containing '..'
+    let key_path = std::path::Path::new(key_path);
+    if key_path.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err(anyhow::anyhow!("Invalid input: {}", key_path.display()));
+    }
     let key_data = std::fs::read_to_string(key_path)?;
     let key_pems = pem::parse_many(&key_data)?;
     let key_pem = key_pems.into_iter().find(|p| {
