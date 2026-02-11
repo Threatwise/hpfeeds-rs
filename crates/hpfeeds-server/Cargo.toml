@@ -13,6 +13,7 @@ tokio-util = { version = "0.7", features = ["codec"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 futures = "0.3"
 rand = "0.10"
+getrandom = "0.4"
 sha1 = "0.10"
 prometheus = "0.14"
 async-trait = "0.1"

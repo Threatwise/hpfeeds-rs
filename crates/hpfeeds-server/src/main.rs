@@ -2,7 +2,8 @@ use clap::Parser;
 use dashmap::DashMap;
 use futures::StreamExt;
 use hpfeeds_core::{Frame, HpfeedsCodec};
-use rand::RngCore;
+use std::fs::File;
+use std::io::Read;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
@@ -313,7 +314,9 @@ async fn handle_connection<S>(
     let mut codec = HpfeedsCodec::new();
 
     let mut randbuf = vec![0u8; 16];
-    rand::rng().fill_bytes(&mut randbuf);
+    if let Ok(mut f) = File::open("/dev/urandom") {
+        if f.read_exact(&mut randbuf).is_err() { return; }
+    } else { return; }
     let info_bytes = codec
         .encode_to_bytes(Frame::Info {
             name: "hpfeeds-rs".to_string().into(),
