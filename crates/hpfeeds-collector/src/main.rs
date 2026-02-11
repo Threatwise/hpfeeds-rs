@@ -16,6 +16,8 @@ use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio_postgres::NoTls;
 use uuid::Uuid;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -82,13 +84,16 @@ struct Event {
 
 mod serde_bytes {
     use serde::{Deserialize, Serializer};
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+
     pub fn serialize<S>(v: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         match std::str::from_utf8(v) {
             Ok(s) => serializer.serialize_str(s),
-            Err(_) => serializer.serialize_str(&base64::encode(v)),
+            Err(_) => serializer.serialize_str(&STANDARD.encode(v)),
         }
     }
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
@@ -96,7 +101,7 @@ mod serde_bytes {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(base64::decode(&s).unwrap_or_else(|_| s.into_bytes()))
+        Ok(STANDARD.decode(&s).unwrap_or_else(|_| s.into_bytes()))
     }
 }
 
@@ -109,7 +114,7 @@ fn to_stix_bundle(events: &[Event]) -> serde_json::Value {
             "type": "observed-data", "id": observed_data_id, "spec_version": "2.1",
             "first_observed": event.timestamp.to_rfc3339(), "last_observed": event.timestamp.to_rfc3339(),
             "number_observed": 1, "external_references": [{"source_name": "hpfeeds", "external_id": event.source}],
-            "x_hpfeeds_channel": event.channel, "x_hpfeeds_payload": base64::encode(&event.payload)
+            "x_hpfeeds_channel": event.channel, "x_hpfeeds_payload": STANDARD.encode(&event.payload)
         }));
         objects.push(serde_json::json!({
             "type": "sighting", "id": format!("sighting--{}", Uuid::new_v4()), "spec_version": "2.1",
