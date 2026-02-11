@@ -13,6 +13,6 @@ anyhow = "1.0"
 futures = "0.3"
 bytes = "1"
 tokio-util = { version = "0.7", features = ["codec"] }
-rand = "0.9"
+rand = "0.10"
 tokio-rusqlite = { version = "0.7", features = ["bundled"] }
 
