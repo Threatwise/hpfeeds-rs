@@ -17,6 +17,7 @@ use tokio::io::AsyncWriteExt;
 use tokio_postgres::NoTls;
 use uuid::Uuid;
 use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -83,6 +84,9 @@ struct Event {
 
 mod serde_bytes {
     use serde::{Deserialize, Serializer};
+    use base64::engine::general_purpose::STANDARD;
+    use base64::Engine;
+
     pub fn serialize<S>(v: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

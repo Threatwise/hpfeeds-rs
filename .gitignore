@@ -12,3 +12,4 @@ release/
 *.rs.bk
 .venv/
 __pycache__/
+.github/copilot-instructions.md
