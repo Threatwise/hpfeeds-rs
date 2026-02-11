@@ -22,7 +22,7 @@ tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
 mongodb = { version = "3.0" }
 elasticsearch = { version = "9.1.0-alpha.1", default-features = false, features = ["rustls-tls"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
-rskafka = "0.4"
+rskafka = "0.6"
 
 [package.metadata.deb]
 maintainer = "HPFeeds Maintainers <maintainers@hpfeeds.io>"
