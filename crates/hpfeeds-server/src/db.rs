@@ -1,7 +1,7 @@
 use crate::auth::{AccessContext, Authenticator};
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio_rusqlite::{Connection, rusqlite};
+use tokio_rusqlite::{rusqlite, Connection};
 use tracing::info;
 
 #[derive(Clone)]

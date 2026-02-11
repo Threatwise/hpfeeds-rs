@@ -1158,6 +1158,7 @@ dependencies = [
  "clap",
  "dashmap",
  "futures",
+ "getrandom 0.4.1",
  "hpfeeds-client",
  "hpfeeds-core",
  "http-body-util",
