@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use chrono::Utc;
 use clap::Parser;
 use elasticsearch::{BulkIndexOperation, BulkOperations, BulkParts, Elasticsearch};
@@ -16,8 +18,6 @@ use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio_postgres::NoTls;
 use uuid::Uuid;
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine;
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -83,9 +83,9 @@ struct Event {
 }
 
 mod serde_bytes {
-    use serde::{Deserialize, Serializer};
-    use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
+    use base64::engine::general_purpose::STANDARD;
+    use serde::{Deserialize, Serializer};
 
     pub fn serialize<S>(v: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
     where

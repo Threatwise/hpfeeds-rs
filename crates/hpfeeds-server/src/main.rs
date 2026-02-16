@@ -315,8 +315,12 @@ async fn handle_connection<S>(
 
     let mut randbuf = vec![0u8; 16];
     if let Ok(mut f) = File::open("/dev/urandom") {
-        if f.read_exact(&mut randbuf).is_err() { return; }
-    } else { return; }
+        if f.read_exact(&mut randbuf).is_err() {
+            return;
+        }
+    } else {
+        return;
+    }
     let info_bytes = codec
         .encode_to_bytes(Frame::Info {
             name: "hpfeeds-rs".to_string().into(),
