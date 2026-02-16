@@ -13,3 +13,4 @@ release/
 .venv/
 __pycache__/
 .github/copilot-instructions.md
+Cargo.lock
